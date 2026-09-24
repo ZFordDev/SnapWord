@@ -206,7 +206,7 @@ the version and bounded UI startup. The packaging command names a single-file
 platform executable. On Windows, compile the installer with Inno Setup using:
 
 ```powershell
-iscc /DAppVersion=0.1.0 /O..\dist-release installer/snapword.iss
+iscc /DAppVersion=0.1.0 /Odist-release installer/snapword.iss
 ```
 
 The installer is per-user and offers Start Menu and optional desktop shortcuts.

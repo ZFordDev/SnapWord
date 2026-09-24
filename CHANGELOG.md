@@ -8,6 +8,9 @@
   installer. Linux and macOS releases provide their standalone executable files.
 - Release workflow supports manual rehearsal, explicit publication, pre-release
   or stable metadata, and SHA-256 checksums. In-app updating remains deferred.
+- Fixed the Windows installer output directory and aligned its filename with the
+  portable asset (`snapword-vX.Y.Z-windows-x86_64-setup.exe`). The workflow now
+  fails before upload if either Windows executable is missing.
 
 ### Fixed
 

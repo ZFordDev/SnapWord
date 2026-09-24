@@ -124,10 +124,15 @@ jobs:
         shell: powershell
         run: |
           $version = $env:RELEASE_TAG.Substring(1)
+          $output = (Resolve-Path "dist-release").Path
           $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $compiler)) { $compiler = (Get-Command iscc.exe -ErrorAction Stop).Source }
-          & $compiler "/DAppVersion=$version" "/O..\dist-release" installer/snapword.iss
+          & $compiler "/DAppVersion=$version" "/O$output" installer/snapword.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $portable = "dist-release\snapword-$env:RELEASE_TAG-windows-x86_64.exe"
+          $installer = "dist-release\snapword-$env:RELEASE_TAG-windows-x86_64-setup.exe"
+          if (-not (Test-Path $portable)) { throw "Missing portable executable: $portable" }
+          if (-not (Test-Path $installer)) { throw "Missing Windows installer: $installer" }
       - name: Upload platform assets
         uses: actions/upload-artifact@v4
         with:
