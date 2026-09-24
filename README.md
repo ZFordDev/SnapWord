@@ -1,252 +1,72 @@
-# SnapWord Otter 🦦
+# SnapWord (Otter) 🦦
 
-Part of the **Snap Ocean Suite** family.  
-A local-first, lightweight word processor built with Python. Rebranded from the original **StaxWord** project to join the open-source Snap ecosystem.
+A local-first word processor in the **Snap Ocean Suite** family.
+Runs entirely on your machine — zero cloud, zero telemetry.
 
-Runs entirely on your machine — zero cloud bloat, zero telemetry, fully local.
+This is the **Otter** line — a Python/Qt reboot of StaxWord built with PySide6,
+just as playful on documents as an otter. Rebranded and open-sourced under the
+Snap ecosystem, with the cleanest successor format: **`.docs`**.
 
-Executable command:
-```bash
-snapword
+## Requirements
+
+- Python 3.10 or later
+- A desktop environment with a display server (or run headless with
+  QT_QPA_PLATFORM=offscreen)
+
+## Installation
 
 ```
-
----
-
-## 🚀 Features
-
-* **Local-First & Offline:** Your documents stay strictly on your drive.
-* **Lightweight Footprint:** Fast startup and low memory footprint powered by Python.
-* **MIT Licensed:** Open source and free for personal and commercial use.
-
----
-
-## 🛠️ Requirements
-
-* Python 3.10 or later
-* A desktop environment with a display server (or run headless with `QT_QPA_PLATFORM=offscreen`)
-
----
-
-## 📦 Installation
-
-```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1   # Windows
-# source .venv/bin/activate    # Linux/macOS
 python -m pip install -e .
-
 ```
 
----
-
-## 🏃 Running
-
-```bash
-snapword            # Open a blank document
-snapword file.docx  # Open a document directly
+## Running
 
 ```
+snapword                 # open a blank document
+snapword file.docs       # open a document directly
+snapword --version       # print version
+```
 
----
+## Features
 
-## 🧪 Development & Tests
+- **Local-first, no account** — your documents stay on your drive, always.
+- **Rich text editing** — fonts, colors, highlights, lists, alignment,
+  indentation, line spacing, block quotes, and code blocks.
+- **Insert everything** — links, images, tables, and horizontal rules anywhere
+  in the document.
+- **Multi-document tabs** — keep several documents open side by side.
+- **Find & Replace** — quick search across the current document.
+- **Light/dark themes** — plus user-editable themes.
+- **Print & export PDF** — share documents without leaving the app.
+- **`.docs` files** — the native SnapWord document format.
 
-```bash
+## Storage
+
+Settings live in the SnapWord family config directory
+(`%LOCALAPPDATA%\ZFordDev\SnapWord` on Windows,
+`~/Library/Application Support/ZFordDev/SnapWord` on macOS,
+`~/.config/ZFordDev/SnapWord` on Linux) inside `settings.json`.
+The `SNAPWORD_CONFIG_DIR` environment variable overrides this location.
+
+## Packaging
+
+A standalone binary is produced with PyInstaller and published as a GitHub
+Release asset on tagged builds:
+
+```
+python -m pip install -e ".[dev]" pyinstaller
+pyinstaller --onefile --name snapword --add-data "snapword/themes/*;snapword/themes" snapword/main.py
+```
+
+## Development & tests
+
+```
 python -m pip install -e ".[dev]"
 python -m unittest discover -s tests -v
-
 ```
 
----
+## Licence
 
-## 📄 License
-
-Distributed under the **MIT License**. See [LICENSE](https://www.google.com/search?q=LICENSE&utm_source=gemini) for more information.
-
-```
-
----
-
-### 2. `SnapDock` — README.md
-
-```markdown
-# SnapDock Guppy 🐟
-
-Part of the **Snap Ocean Suite** family.  
-A compact, ultra-lightweight Markdown editor. Formerly StaxMD, now rebranded and completely rewritten in Python for v5 to keep memory footprint as minimal as a guppy.
-
-Executable command:
-```bash
-snapdock
-
-```
-
----
-
-## 🚀 Features
-
-* **Micro Footprint:** Stripped down for raw speed, instantaneous startup, and minimal RAM usage.
-* **Focused Markdown:** Distraction-free writing environment.
-* **100% Native & Local:** No Electron, no hidden cloud connections.
-
----
-
-## 🛠️ Requirements
-
-* Python 3.10 or later
-* A desktop environment with a display server
-
----
-
-## 📦 Installation
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1   # Windows
-# source .venv/bin/activate    # Linux/macOS
-python -m pip install -e .
-
-```
-
----
-
-## 🏃 Running
-
-```bash
-snapdock           # Open a blank note
-snapdock notes.md  # Open a specific Markdown file
-
-```
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See [LICENSE](https://www.google.com/search?q=LICENSE&utm_source=gemini) for more information.
-
-```
-
----
-
-### 3. `SnapBoard` — README.md
-
-```markdown
-# SnapBoard Manta 🪸
-
-Part of the **Snap Ocean Suite** family.  
-A visual, highly responsive Kanban board application. Rescued and revived from the archived **StaxKB** app, completely rebuilt in Python for smooth, wide-canvas productivity.
-
-Executable command:
-```bash
-snapboard
-
-```
-
----
-
-## 🚀 Features
-
-* **Kanban & Board Workflows:** Drag-and-drop task cards across columns.
-* **Smooth Navigation:** Designed like a Manta ray — wide layout, zero lag, silky smooth.
-* **Local Storage:** Keep all project data and board configs stored safely on your own machine.
-
----
-
-## 🛠️ Requirements
-
-* Python 3.10 or later
-* A desktop environment with a display server
-
----
-
-## 📦 Installation
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1   # Windows
-# source .venv/bin/activate    # Linux/macOS
-python -m pip install -e .
-
-```
-
----
-
-## 🏃 Running
-
-```bash
-snapboard           # Launch your Kanban dashboard
-snapboard board.json # Load a specific board file
-
-```
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See [LICENSE](https://www.google.com/search?q=LICENSE&utm_source=gemini) for more information.
-
-```
-
----
-
-### 4. `SnapCode` — README.md
-
-```markdown
-# SnapCode Piranha 🦈
-
-Part of the **Snap Ocean Suite** family.  
-An aggressive, zero-bloat code editor designed to bite through code instantly. Built in Python to bypass heavy Electron frameworks and launch in milliseconds.
-
-Executable command:
-```bash
-snapcode
-
-```
-
----
-
-## 🚀 Features
-
-* **Instant Cold Boot:** Opens instantly without spinning up background telemetries or heavy runtime processes.
-* **Low Memory Usage:** Runs lean with a fraction of the RAM required by heavy web-based IDEs.
-* **Fast Code Edits:** Razor-sharp focus for fast code tweaks, scripts, and multi-file projects.
-
----
-
-## 🛠️ Requirements
-
-* Python 3.10 or later
-* A desktop environment with a display server
-
----
-
-## 📦 Installation
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1   # Windows
-# source .venv/bin/activate    # Linux/macOS
-python -m pip install -e .
-
-```
-
----
-
-## 🏃 Running
-
-```bash
-snapcode           # Open code editor
-snapcode main.py   # Open a file directly
-
-```
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See [LICENSE](https://www.google.com/search?q=LICENSE&utm_source=gemini) for more information.
-
-```
-
-```
+MIT — see [LICENSE](LICENSE).
