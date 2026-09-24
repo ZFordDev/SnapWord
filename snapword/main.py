@@ -7,12 +7,22 @@ from PySide6.QtWidgets import QApplication
 from .ui.window import SnapWordWindow
 
 
+def _get_version() -> str:
+    try:
+        from importlib.metadata import version as _pkg_version
+
+        return _pkg_version("snapword")
+    except Exception:
+        return "0.1.0"
+
+
 def launch(file_path: str | None = None) -> int:
+    """Launch SnapWord as an independent application."""
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
 
-    window = SnapWordWindow()
+    window = SnapWordWindow(version=_get_version())
     if file_path:
         window.load_file(file_path)
     window.show()
@@ -21,7 +31,12 @@ def launch(file_path: str | None = None) -> int:
 
 
 def main() -> int:
-    return launch(sys.argv[1] if len(sys.argv) > 1 else None)
+    args = sys.argv[1:]
+    if args and args[0] in ("--version", "-v", "-V"):
+        print(f"SnapWord {_get_version()}")
+        return 0
+
+    return launch(args[0] if args else None)
 
 
 if __name__ == "__main__":

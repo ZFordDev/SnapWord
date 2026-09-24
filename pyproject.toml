@@ -3,22 +3,22 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "staxword"
+name = "snapword"
 version = "0.1.0"
-description = "StaxDash StaxWord - local-first desktop StaxWord application"
+description = "SnapWord - local-first word processor in the Snap Ocean Suite"
 readme = "README.md"
-license = { text = "EULA" }
+license = { text = "MIT" }
 requires-python = ">=3.10"
 
 authors = [
-  { name = "StaxDash", email = "studio@staxdash.com" }
+  { name = "ZFordDev", email = "zforddev@gmail.com" }
 ]
 maintainers = [
-  { name = "StaxDash", email = "studio@staxdash.com" }
+  { name = "ZFordDev", email = "zforddev@gmail.com" }
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: Other/Proprietary License",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 
@@ -30,7 +30,7 @@ dependencies = [
 dev = ["pytest", "black", "ruff"]
 
 [tool.setuptools]
-packages = ["staxword"]
+packages = ["snapword"]
 
 [tool.ruff]
 target-version = "py310"
@@ -43,4 +43,4 @@ select = ["E", "F", "I", "N", "UP", "SIM", "BLE"]
 ignore = ["N802", "BLE001"]
 
 [project.scripts]
-staxword = "staxword.main:main"
+snapword = "snapword.main:main"

@@ -1,8 +1,5 @@
 """Preferences dialog for SnapWord — font sizes, default settings."""
 
-import contextlib
-import json
-from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Signal
@@ -17,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_PREFS_PATH = Path.home() / ".config" / "staxoffice" / "SnapWord" / "prefs.json"
+from ..config import load_settings, save_settings
 
 _DEFAULTS: dict[str, Any] = {
     "editor_font_family": "Arial",
@@ -34,18 +31,15 @@ _DEFAULTS: dict[str, Any] = {
 def load_prefs() -> dict[str, Any]:
     """Load user preferences, falling back to defaults."""
     prefs = dict(_DEFAULTS)
-    if _PREFS_PATH.exists():
-        with contextlib.suppress(Exception):
-            prefs.update(json.loads(_PREFS_PATH.read_text(encoding="utf-8")))
+    prefs.update(load_settings())
     return prefs
 
 
 def save_prefs(prefs: dict[str, Any]) -> None:
     """Save user preferences to disk."""
-    _PREFS_PATH.parent.mkdir(parents=True, exist_ok=True)
     # Don't persist recent_files list in this save
     to_save = {k: v for k, v in prefs.items() if k != "recent_files"}
-    _PREFS_PATH.write_text(json.dumps(to_save, indent=2), encoding="utf-8")
+    save_settings(to_save)
 
 
 def get_pref(key: str) -> Any:

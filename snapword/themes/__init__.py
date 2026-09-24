@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..config import app_config_dir
+
 # Directory where user themes are stored
-_USER_THEMES_DIR = Path.home() / ".config" / "staxoffice" / "SnapWord" / "themes"
+_USER_THEMES_DIR = app_config_dir() / "themes"
 
 # Semantic color keys for the theme editor
 THEME_COLORS: dict[str, str] = {
