@@ -24,13 +24,22 @@ classifiers = [
 
 dependencies = [
     "PySide6",
+  "python-docx",
+  "odfpy",
+  "markdown",
+  "striprtf",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "black", "ruff"]
+build = ["pyinstaller", "pillow"]
 
-[tool.setuptools]
-packages = ["snapword"]
+[tool.setuptools.packages.find]
+include = ["snapword*"]
+
+[tool.setuptools.package-data]
+"snapword.themes" = ["*.qss", "*.qss.in"]
+"snapword" = ["assets/*.svg", "assets/*.png", "assets/*.ico", "assets/*.icns"]
 
 [tool.ruff]
 target-version = "py310"

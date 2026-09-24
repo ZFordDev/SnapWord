@@ -1,127 +1,98 @@
-"""Theme manager for SnapWord — handles built-in and user-defined themes."""
-
-from __future__ import annotations
+"""Theme persistence and one shared stylesheet for all palettes."""
 
 import json
+import re
 from pathlib import Path
-from typing import Any
+
+from PySide6.QtGui import QColor
 
 from ..config import app_config_dir
+from ..ui.metrics import PAGE_HORIZONTAL_PADDING, PAGE_VERTICAL_PADDING
+from .palettes import LIGHT, PALETTES
 
-# Directory where user themes are stored
 _USER_THEMES_DIR = app_config_dir() / "themes"
-
-# Semantic color keys for the theme editor
-THEME_COLORS: dict[str, str] = {
-    "workspace_bg": "#f0f2f5",
-    "editor_bg": "#ffffff",
-    "text_color": "#202124",
-    "toolbar_bg": "#f8f9fa",
-    "toolbar_border": "#dadce0",
-    "menu_bg": "#f8f9fa",
-    "menu_hover": "#e8eaed",
-    "button_bg": "#f1f3f4",
-    "button_hover": "#e8eaed",
-    "button_active": "#d2e3fc",
-    "accent": "#4aa3ff",
-    "accent_text": "#1a73e8",
-    "scrollbar_bg": "#f1f1f1",
-    "scrollbar_handle": "#c1c1c1",
-    "tab_active_bg": "#ffffff",
-    "tab_inactive_bg": "#f1f3f4",
-    "border_color": "#dadce0",
-    "footer_bg": "#f8f9fa",
-    "page_shadow": "#dadce0",
-}
+THEME_COLORS = dict(LIGHT)
+_TEMPLATE = Path(__file__).with_name("layout.qss.in")
 
 
-def _builtin_themes_dir() -> Path:
-    return Path(__file__).resolve().parent
+def _theme_path(name):
+    if not isinstance(name, str) or not re.fullmatch(r"[\w .-]+", name) or name in (".", ".."):
+        raise ValueError("Use letters, numbers, spaces, dots, underscores or hyphens in theme names.")
+    return _USER_THEMES_DIR / f"{name}.json"
 
 
-def _user_themes_dir() -> Path:
+def _user_themes_dir():
     _USER_THEMES_DIR.mkdir(parents=True, exist_ok=True)
     return _USER_THEMES_DIR
 
 
-def list_themes() -> dict[str, dict[str, Any]]:
-    """Return all available themes: ``{"name": {"builtin": bool, "path": str}}``."""
-    themes: dict[str, dict[str, Any]] = {}
-
-    # Built-in themes
-    for f in _builtin_themes_dir().glob("*.qss"):
-        themes[f.stem] = {"builtin": True, "path": str(f)}
-
-    # User themes (JSON)
-    for f in _user_themes_dir().glob("*.json"):
-        if f.stem not in themes:
-            themes[f.stem] = {"builtin": False, "path": str(f)}
-
+def list_themes():
+    themes = {name: {"builtin": True, "path": str(_TEMPLATE)} for name in PALETTES}
+    for path in _user_themes_dir().glob("*.json"):
+        if path.stem not in themes:
+            themes[path.stem] = {"builtin": False, "path": str(path)}
     return themes
 
 
-def load_theme_colors(name: str) -> dict[str, str] | None:
-    """Load color overrides for a user theme. Returns None for built-in themes."""
-    path = _user_themes_dir() / f"{name}.json"
-    if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
+def load_theme_colors(name):
+    try:
+        path = _theme_path(name)
+        if path.exists():
+            colors = json.loads(path.read_text(encoding="utf-8"))
+            return colors if isinstance(colors, dict) else None
+    except (OSError, ValueError):
+        pass
     return None
 
 
-def save_theme_colors(name: str, colors: dict[str, str]) -> None:
-    """Save a user theme as a JSON color map."""
-    path = _user_themes_dir() / f"{name}.json"
+def save_theme_colors(name, colors):
+    if is_builtin(name):
+        raise ValueError("Choose a new name for your custom theme.")
+    path = _theme_path(name)
+    _user_themes_dir()
     path.write_text(json.dumps(colors, indent=2), encoding="utf-8")
 
 
-def delete_theme(name: str) -> bool:
-    """Delete a user theme. Returns False if it's built-in or doesn't exist."""
-    path = _user_themes_dir() / f"{name}.json"
+def delete_theme(name):
+    if is_builtin(name):
+        return False
+    path = _theme_path(name)
     if path.exists():
         path.unlink()
         return True
     return False
 
 
-def is_builtin(name: str) -> bool:
-    return (_builtin_themes_dir() / f"{name}.qss").exists()
+def is_builtin(name):
+    return name in PALETTES
 
 
-def generate_qss(base_theme: str, color_overrides: dict[str, str]) -> str:
-    """Read the base QSS file and apply color overrides using CSS variables.
+def resolved_colors(name):
+    if name in PALETTES:
+        return dict(PALETTES[name])
+    overrides = load_theme_colors(name) or {}
+    colors = dict(PALETTES.get(overrides.get("_base"), LIGHT))
+    for key, value in overrides.items():
+        if key in colors and isinstance(value, str) and QColor(value).isValid():
+            colors[key] = value
+    return colors
 
-    The base QSS files must use ``{var_name}`` placeholders for colors
-    that can be overridden.
-    """
-    qss_path = _builtin_themes_dir() / f"{base_theme}.qss"
-    if not qss_path.exists():
-        # Fallback: use light theme
-        qss_path = _builtin_themes_dir() / "light.qss"
 
-    qss = qss_path.read_text(encoding="utf-8")
-
-    # Merge with defaults
-    colors = dict(THEME_COLORS)
-    colors.update(color_overrides)
-
-    # Replace {var_name} placeholders
-    for key, value in colors.items():
-        qss = qss.replace(f"{{{key}}}", value)
-
+def generate_qss(base_theme, color_overrides):
+    colors = resolved_colors(base_theme)
+    for key, value in color_overrides.items():
+        if key in colors and isinstance(value, str) and QColor(value).isValid():
+            colors[key] = value
+    values = {
+        **colors,
+        "page_vertical_padding": PAGE_VERTICAL_PADDING,
+        "page_horizontal_padding": PAGE_HORIZONTAL_PADDING,
+    }
+    qss = _TEMPLATE.read_text(encoding="utf-8")
+    for key, value in values.items():
+        qss = qss.replace("{" + key + "}", str(value))
     return qss
 
 
-def apply_theme_to_widget(widget: Any, theme_name: str) -> None:
-    """Apply a theme (built-in or user) to a widget."""
-    user_colors = load_theme_colors(theme_name)
-    if user_colors:
-        # User theme: generate from base light + overrides
-        base = user_colors.pop("_base", "light")
-        qss = generate_qss(base, user_colors)
-    elif is_builtin(theme_name):
-        qss_path = _builtin_themes_dir() / f"{theme_name}.qss"
-        qss = qss_path.read_text(encoding="utf-8")
-    else:
-        qss = ""
-
-    widget.setStyleSheet(qss)
+def apply_theme_to_widget(widget, theme_name):
+    widget.setStyleSheet(generate_qss(theme_name, {}))

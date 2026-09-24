@@ -18,6 +18,6 @@ def make_font(families: list[str], size: int, bold: bool = False) -> QFont:
     """Create a QFont with a cross-platform fallback stack."""
     font = QFont()
     font.setFamilies(families)
-    font.setPointSize(size)
+    font.setPointSize(max(1, int(size)))
     font.setBold(bold)
     return font

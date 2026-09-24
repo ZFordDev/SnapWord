@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QTextBlockFormat, QTextCharFormat, QTextListFormat
-from PySide6.QtWidgets import QTextEdit
+from PySide6.QtWidgets import QAbstractScrollArea, QSizePolicy, QTextEdit
 
 from snapword.fonts import UI_TEXT, make_font
+from snapword.formats import load_as_html, save_document
+from snapword.images import image_data_url, portable_html
+from snapword.storage import atomic_destination
+
+from .conversion import confirm_conversion
+from .metrics import PAGE_VERTICAL_PADDING
 
 
 class SnapWordEditor(QTextEdit):
+    _PAGE_VERTICAL_PADDING = PAGE_VERTICAL_PADDING * 2
+
     metrics_changed = Signal(int, int)  # words, chars
     file_dirty_changed = Signal(bool)
     cursor_format_changed = Signal()  # emitted when cursor position/selection changes
@@ -18,12 +26,51 @@ class SnapWordEditor(QTextEdit):
         self.setFont(make_font(UI_TEXT, 12))
         self.setPlaceholderText("Start typing your document here...")
         self.setAcceptRichText(True)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         self._current_path: str | None = None
         self._dirty: bool = False
+        self.default_line_spacing = 1.5
 
         self.textChanged.connect(self._on_text_changed)
         self.cursorPositionChanged.connect(self._on_cursor_moved)
+        self.currentCharFormatChanged.connect(lambda _format: self.cursor_format_changed.emit())
+        self.textChanged.connect(self.cursor_format_changed.emit)
+        self.document().documentLayout().documentSizeChanged.connect(self._update_document_height)
+        self.document().modificationChanged.connect(self._modification_changed)
+        self._update_document_height()
+
+    def _modification_changed(self, dirty):
+        if dirty != self._dirty:
+            self._dirty = dirty
+            self.file_dirty_changed.emit(dirty)
+
+    def setPlainText(self, text):
+        """Treat explicit content replacement as an edit, not a file load."""
+        super().setPlainText(text)
+        self.document().setModified(True)
+
+    def attach_document(self, document, path):
+        previous = self.document()
+        if previous is not document:
+            previous.documentLayout().documentSizeChanged.disconnect(self._update_document_height)
+            previous.modificationChanged.disconnect(self._modification_changed)
+            self.setDocument(document)
+            document.documentLayout().documentSizeChanged.connect(self._update_document_height)
+            document.modificationChanged.connect(self._modification_changed)
+        self._current_path = path
+        self._modification_changed(document.isModified())
+        self._update_document_height()
+        self.cursor_format_changed.emit()
+        self.undoAvailable.emit(document.isUndoAvailable())
+        self.redoAvailable.emit(document.isRedoAvailable())
+
+    def _update_document_height(self) -> None:
+        document_height = self.document().documentLayout().documentSize().height()
+        self.setFixedHeight(max(1, round(document_height) + self._PAGE_VERTICAL_PADDING))
 
     # ---------------------------------------------------------
     # Formatting helpers
@@ -159,7 +206,7 @@ class SnapWordEditor(QTextEdit):
     def set_line_spacing(self, spacing: float) -> None:
         cursor = self.textCursor()
         block_fmt = cursor.blockFormat()
-        block_fmt.setLineHeight(spacing, 1)  # 1 = ProportionalHeight
+        block_fmt.setLineHeight(spacing * 100, QTextBlockFormat.LineHeightTypes.ProportionalHeight.value)
         cursor.setBlockFormat(block_fmt)
         self.setTextCursor(cursor)
 
@@ -178,7 +225,7 @@ class SnapWordEditor(QTextEdit):
         block_fmt = QTextBlockFormat()
         block_fmt.setIndent(1)
         char_fmt = QTextCharFormat()
-        char_fmt.setFontFamily("Consolas")
+        char_fmt.setFontFamilies(["Consolas"])
         char_fmt.setFontPointSize(10)
         cursor.mergeBlockFormat(block_fmt)
         cursor.mergeCharFormat(char_fmt)
@@ -200,17 +247,30 @@ class SnapWordEditor(QTextEdit):
         if pixmap.width() > max_width:
             pixmap = pixmap.scaledToWidth(max_width, Qt.SmoothTransformation)
 
-        # Save scaled image to a temp file for HTML embedding
-        import tempfile
-        from pathlib import Path
+        self.textCursor().insertHtml(
+            f'<img src="{image_data_url(pixmap.toImage())}" width="{pixmap.width()}" height="{pixmap.height()}">'
+        )
 
-        suffix = Path(path).suffix or ".png"
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            pixmap.save(tmp.name, suffix.lstrip(".").upper())
-            tmp_path = tmp.name
+    def canInsertFromMimeData(self, source):
+        return source.hasImage() or super().canInsertFromMimeData(source)
 
-        cursor = self.textCursor()
-        cursor.insertHtml(f'<img src="{tmp_path}" width="{pixmap.width()}" height="{pixmap.height()}">')
+    def insertFromMimeData(self, source):
+        from PySide6.QtCore import QMimeData
+        from PySide6.QtGui import QImage
+        from PySide6.QtWidgets import QMessageBox
+
+        try:
+            if source.hasImage():
+                image = QImage(source.imageData())
+                self.textCursor().insertHtml(f'<img src="{image_data_url(image)}">')
+            elif source.hasHtml():
+                embedded = QMimeData()
+                embedded.setHtml(portable_html(source.html()))
+                super().insertFromMimeData(embedded)
+            else:
+                super().insertFromMimeData(source)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Paste failed", str(exc))
 
     def insert_image_dialog(self) -> None:
         """Open file dialog and insert selected image."""
@@ -252,11 +312,11 @@ class SnapWordEditor(QTextEdit):
         cursor.insertHtml("<hr>")
 
     def insert_link(self, url: str, text: str = "") -> None:
-        cursor = self.textCursor()
-        if text:
-            cursor.insertHtml(f'<a href="{url}">{text}</a>')
-        else:
-            cursor.insertHtml(f'<a href="{url}">{url}</a>')
+        fmt = QTextCharFormat()
+        fmt.setAnchor(True)
+        fmt.setAnchorHref(url)
+        fmt.setFontUnderline(True)
+        self.textCursor().insertText(text or url, fmt)
 
     # ---------------------------------------------------------
     # Format query helpers (for toolbar state reflection)
@@ -287,11 +347,29 @@ class SnapWordEditor(QTextEdit):
         families = self.current_format().fontFamilies()
         if families and len(families) > 0:
             return str(families[0])
-        return "Arial"
+        return self.document().defaultFont().family() or "Arial"
 
-    def current_font_size(self) -> int:
+    def current_font_size(self) -> float:
         size = self.current_format().fontPointSize()
-        return int(size) if size > 0 else 12
+        default = self.document().defaultFont().pointSizeF()
+        return size if size > 0 else (default if default > 0 else 12)
+
+    def restore_document(self, html: str, path: str | None, dirty: bool) -> None:
+        """Restore a tab without exposing editor internals to its controller."""
+        self.setHtml(html)
+        if not html:
+            self.set_line_spacing(self.default_line_spacing)
+        self._current_path = path
+        self._dirty = dirty
+        self.document().setModified(dirty)
+        self.file_dirty_changed.emit(dirty)
+        self.cursor_format_changed.emit()
+
+    def mark_saved(self, path: str) -> None:
+        self._current_path = path
+        self._dirty = False
+        self.document().setModified(False)
+        self.file_dirty_changed.emit(False)
 
     def current_text_color(self):
         return self.current_format().foreground().color() if self.current_format().foreground().isValid() else None
@@ -305,13 +383,7 @@ class SnapWordEditor(QTextEdit):
 
     def load_file(self, path: str) -> None:
         try:
-            with open(path, encoding="utf-8") as f:
-                content = f.read()
-
-            if path.endswith((".html", ".htm", ".docs")):
-                self.setHtml(content)
-            else:
-                self.setPlainText(content)
+            self.setHtml(load_as_html(path))
 
             self._current_path = path
             self._dirty = False
@@ -326,12 +398,12 @@ class SnapWordEditor(QTextEdit):
             print("[SnapWord] No file path provided for save.")
             return
 
+        if not confirm_conversion(self, path):
+            return
+
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(self.toHtml())
-            self._current_path = path
-            self._dirty = False
-            self.file_dirty_changed.emit(False)
+            save_document(path, self.toHtml(), self.toPlainText())
+            self.mark_saved(path)
         except Exception as e:
             print(f"[SnapWord] Failed to save file: {e}")
 
@@ -352,12 +424,34 @@ class SnapWordEditor(QTextEdit):
         if not path:
             return
 
-        from PySide6.QtPrintSupport import QPrinter
+        from pathlib import Path
 
-        printer = QPrinter(QPrinter.HighResolution)
-        printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
-        printer.setOutputFileName(path)
-        self.document().print_(printer)
+        from PySide6.QtPrintSupport import QPrinter
+        from PySide6.QtWidgets import QMessageBox
+
+        path = path if Path(path).suffix else path + ".pdf"
+        try:
+            with atomic_destination(path) as temporary:
+                printer = QPrinter(QPrinter.HighResolution)
+                printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+                printer.setOutputFileName(str(temporary))
+                self.document().print_(printer)
+                if printer.printerState() == QPrinter.PrinterState.Error or temporary.stat().st_size == 0:
+                    raise OSError("The PDF printer could not write the document.")
+        except Exception as exc:
+            QMessageBox.warning(self, "PDF export failed", str(exc))
+
+    def export_document(self, path: str) -> bool:
+        """Export without changing the source document's save point."""
+        from PySide6.QtWidgets import QMessageBox
+        if not confirm_conversion(self, path):
+            return False
+        try:
+            save_document(path, self.toHtml(), self.toPlainText())
+            return True
+        except Exception as exc:
+            QMessageBox.warning(self, "Export failed", str(exc))
+            return False
 
     def print_document(self) -> None:
         """Print the document via the system print dialog."""
@@ -389,9 +483,7 @@ class SnapWordEditor(QTextEdit):
     # ---------------------------------------------------------
 
     def _on_text_changed(self) -> None:
-        if not self._dirty:
-            self._dirty = True
-            self.file_dirty_changed.emit(True)
+        self._modification_changed(self.document().isModified())
 
         words, chars = self.get_metrics()
         self.metrics_changed.emit(words, chars)

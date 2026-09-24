@@ -1,0 +1,70 @@
+/* Shared layout and states. Colors are supplied by the theme palette. */
+QWidget {
+    background-color: {editor_bg}; color: {text_color};
+    font-family: 'Segoe UI', 'SF Pro Text', 'Ubuntu', sans-serif; font-size: 10pt;
+}
+QMenuBar { background: {menu_bg}; padding: 3px 8px; }
+QMenuBar::item { background: transparent; padding: 4px 10px; border-radius: 4px; }
+QMenuBar::item:selected { background: {menu_hover}; }
+QMenu { background: {menu_bg}; border: 1px solid {border_color}; padding: 4px; }
+QMenu::item { padding: 6px 24px; }
+QMenu::item:selected { background: {menu_hover}; }
+QMenu::item:disabled { color: {scrollbar_handle}; }
+QToolBar {
+    background: {toolbar_bg}; border-bottom: 1px solid {toolbar_border};
+    padding: 2px 4px; spacing: 1px;
+}
+QToolBar::handle {
+    width: 9px; height: 9px; margin: 7px 2px;
+    border-left: 2px dotted {scrollbar_handle}; border-right: 2px dotted {scrollbar_handle};
+}
+QToolBar QToolButton {
+    background: transparent; border: 1px solid transparent; border-radius: 4px;
+    padding: 3px 6px; min-width: 22px; min-height: 24px;
+}
+QToolBar QToolButton:hover { background: {button_hover}; border-color: {border_color}; }
+QToolBar QToolButton:checked { background: {button_active}; color: {accent_text}; border-color: {accent}; }
+QToolBar QToolButton:pressed { background: {button_active}; }
+QToolBar QToolButton:disabled { color: {scrollbar_handle}; }
+QToolBar QComboBox {
+    background: {button_bg}; border: 1px solid {border_color}; border-radius: 4px;
+    padding: 2px 5px; min-height: 26px; font-size: 10pt;
+}
+QToolBar QComboBox:hover { border-color: {accent}; }
+QToolBar QComboBox::drop-down { border: none; width: 18px; }
+QToolBar QComboBox::down-arrow {
+    width: 0; height: 0; margin-right: 5px;
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 5px solid {text_color};
+}
+QTreeView#FileTreeList { background: {toolbar_bg}; border: none; padding: 6px; }
+QTreeView::item { padding: 5px; }
+QTreeView::item:hover { background: {button_hover}; }
+QTreeView::item:selected { background: {button_active}; color: {accent_text}; }
+QDockWidget::title { background: {toolbar_bg}; padding: 6px 10px; border-bottom: 1px solid {border_color}; }
+QWidget#PageWorkspace, QScrollArea#PageScrollArea { background: {workspace_bg}; border: none; }
+QWidget#PageContainer {
+    background: {editor_bg};
+    border-left: 1px solid {page_shadow}; border-right: 1px solid {page_shadow};
+}
+QTextEdit#RichTextEdit {
+    background: {editor_bg}; color: {text_color}; border: none;
+    padding: {page_vertical_padding}px {page_horizontal_padding}px;
+    selection-background-color: {button_active};
+}
+QWidget#AppFooter { background: {footer_bg}; border-top: 1px solid {border_color}; }
+QWidget#AppFooter QLabel { background: transparent; }
+QWidget#TabBar { background: {tab_inactive_bg}; border-bottom: 1px solid {border_color}; }
+QTabBar#DocumentTabs::tab {
+    background: {tab_inactive_bg}; padding: 7px 14px; min-width: 100px;
+    border: none; border-bottom: 2px solid transparent;
+}
+QTabBar#DocumentTabs::tab:selected { background: {tab_active_bg}; border-bottom: 2px solid {accent}; }
+QPushButton#NewTabButton, QPushButton#TabCloseBtn {
+    background: transparent; border: none; padding: 0; border-radius: 3px;
+}
+QPushButton#NewTabButton { font-size: 14pt; }
+QPushButton#TabCloseBtn:hover, QPushButton#NewTabButton:hover { background: {button_hover}; }
+QScrollBar:vertical { background: {scrollbar_bg}; width: 12px; margin: 0; }
+QScrollBar::handle:vertical { background: {scrollbar_handle}; min-height: 24px; border-radius: 4px; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }

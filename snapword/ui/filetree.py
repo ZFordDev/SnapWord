@@ -11,10 +11,9 @@ class SnapWordFileTree(QTreeView):
         super().__init__()
         self.setObjectName("FileTreeList")
 
-        self.model = QFileSystemModel()
-        self.model.setRootPath(QDir.currentPath())
+        self.model = QFileSystemModel(self)
         self.setModel(self.model)
-        self.setRootIndex(self.model.index(QDir.currentPath()))
+        self.set_root_path(QDir.homePath())
 
         self.setHeaderHidden(True)
         self.setMinimumWidth(220)
@@ -23,6 +22,10 @@ class SnapWordFileTree(QTreeView):
             self.setColumnHidden(i, True)
 
         self.doubleClicked.connect(self._open_file)
+
+    def set_root_path(self, path: str) -> None:
+        root_index = self.model.setRootPath(path)
+        self.setRootIndex(root_index)
 
     def _open_file(self, index) -> None:
         if self.model.fileInfo(index).isFile():

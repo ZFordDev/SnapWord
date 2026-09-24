@@ -1,0 +1,40 @@
+<!-- SnapWord Logo (Rich Text Edition) -->
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#b943a6;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#922d81;stop-opacity:1" />
+        </linearGradient>
+        
+    </defs>
+    
+    <!-- Background Card -->
+    <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
+    
+    <!-- Outer Card Frame -->
+    <g>
+        <path d="M120 160C120 148.954 128.954 140 140 140H372C383.046 140 392 148.954 392 160V352C392 363.046 383.046 372 372 372H140C128.954 372 120 363.046 120 352V160Z" 
+            stroke="white" 
+            stroke-width="24" 
+            stroke-linejoin="round" />
+        
+        <!-- 'R' Letter -->
+        <path d="M180 310V235H210C222 235 230 242 230 252.5C230 263 222 270 210 270H180M205 270L230 310" 
+            stroke="white" 
+            stroke-width="18" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" />
+
+        <!-- 't' Letter -->
+        <path d="M255 248V310M248 262H268" 
+            stroke="white" 
+            stroke-width="18" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" />
+
+        <!-- Rich Text Formatting Lines (Right Side) -->
+        <line x1="295" y1="245" x2="340" y2="245" stroke="white" stroke-width="14" stroke-linecap="round" />
+        <line x1="295" y1="275" x2="330" y2="275" stroke="white" stroke-width="10" stroke-linecap="round" opacity="0.85" />
+        <line x1="295" y1="300" x2="340" y2="300" stroke="white" stroke-width="10" stroke-linecap="round" opacity="0.85" />
+    </g>
+</svg>

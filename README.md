@@ -57,6 +57,22 @@ Because apparently nobody had claimed the obvious one.
 * 🖨️ **Print & PDF export** — get documents out of SnapWord without needing another application.
 * 📄 **Native `.docs` documents** — SnapWord's own document format.
 
+### Supported Formats
+
+* **Open / Save:** `.docs`, `.docx`, `.odt`
+* **Import:** `.rtf`, `.txt`, `.html`, `.md`
+* **Export:** `.pdf`, `.rtf`, `.txt`, `.html`, `.md`
+
+Use `.docs` for editable SnapWord documents with embedded images. DOCX and ODT
+support basic formatted text, headings, lists, links, images and tables—not full
+Word layout fidelity. Advanced numbering, merged/nested tables, comments, tracked
+changes, headers and footers may not survive conversion. Keep the original;
+SnapWord asks before importing or saving these formats.
+
+RTF is text-only. Markdown retains supported markup, not page layout; TXT drops
+formatting. Lossy exports require confirmation. Document and PDF writes replace
+the destination only after the new file has been written successfully.
+
 ---
 
 ## 🚀 Installation
@@ -166,31 +182,50 @@ and Otter will happily move house.
 
 ## 📦 Packaging
 
-SnapWord can be packaged as a standalone executable using **PyInstaller**.
+SnapWord's release build produces a standalone executable for each platform. The
+Windows build also includes a per-user installer; Linux and macOS users run the
+single-file executable directly. An automatic in-app updater is deferred.
 
 Install the development dependencies:
 
 ```bash
-python -m pip install -e ".[dev]" pyinstaller
+python -m pip install -e ".[dev,build]"
 ```
 
 Then build:
 
 ```bash
-pyinstaller --onefile --name snapword --add-data "snapword/themes/*;snapword/themes" snapword_launcher.py
+python scripts/build_icons.py
+pyinstaller --noconfirm snapword.spec
+python scripts/check_binary.py dist/snapword.exe
+python scripts/package_release.py v0.1.0
 ```
 
-Tagged builds are published as GitHub Release assets.
+Use `dist/snapword` for the binary check on Linux/macOS. The check verifies both
+the version and bounded UI startup. The packaging command names a single-file
+platform executable. On Windows, compile the installer with Inno Setup using:
+
+```powershell
+iscc /DAppVersion=0.1.0 /O..\dist-release installer/snapword.iss
+```
+
+The installer is per-user and offers Start Menu and optional desktop shortcuts.
+GitHub Actions manual runs rehearse by default, while tag pushes publish
+pre-releases with checksums. A manual publish can promote a verified tag to a
+stable release. The draft SVG remains the icon source.
 
 ---
 
 ## 🛠️ Development & Tests
 
+See [UI architecture and workspace customization](docs/UI_ARCHITECTURE.md) for
+toolbar section ownership, layout persistence, theme styling, and regression checks.
+
 Want to poke around inside the Otter?
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m unittest discover -s tests -v
+python -m pytest -q
 ```
 
 Bug fixes, improvements, documentation changes and sensible amounts of chaos are welcome.

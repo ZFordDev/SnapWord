@@ -1,77 +1,173 @@
-name: release
+name: GitHub Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: v-prefixed version to validate
+        required: true
+        type: string
+      publish:
+        description: Publish assets for an existing tag after successful builds
+        required: true
+        default: false
+        type: boolean
+      prerelease:
+        description: Mark a published release as a pre-release
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build:
-    name: build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+  verify:
+    runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
+      SNAPWORD_CONFIG_DIR: ${{ runner.temp }}/snapword-release-tests
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Check out tagged release
+        if: github.event_name == 'push' || inputs.publish
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Check out rehearsal source
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Linux Qt runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 libfontconfig1
+      - name: Install, lint and test
+        run: |
+          python -m pip install -e ".[dev,build]"
+          ruff check .
+          QT_QPA_PLATFORM=offscreen python -m pytest -q
+      - name: Verify tag matches project version
+        run: python scripts/release.py verify-tag "$RELEASE_TAG"
+
+  build:
+    needs: verify
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: windows-latest
+            asset: snapword-windows-x86_64
+          - os: macos-14
+            asset: snapword-macos
+          - os: ubuntu-22.04
+            asset: snapword-linux-x86_64
+    runs-on: ${{ matrix.os }}
     env:
       QT_QPA_PLATFORM: offscreen
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
-
+      - name: Check out tagged release
+        if: github.event_name == 'push' || inputs.publish
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Check out rehearsal source
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish
+        uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-
-      - name: Install Qt runtime libraries (Linux)
+          python-version: "3.12"
+          cache: pip
+      - name: Install Linux Qt runtime libraries
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libdbus-1-3 libfontconfig1
-
+          sudo apt-get install --yes libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 libfontconfig1
       - name: Install build dependencies
-        run: python -m pip install -e ".[dev]" pyinstaller
-
-      - name: Determine path separator for --add-data
-        id: sep
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then echo "sep=;" >> "$GITHUB_OUTPUT"; else echo "sep=:" >> "$GITHUB_OUTPUT"; fi
-
+        run: python -m pip install -e ".[dev,build]"
+      - name: Install Inno Setup
+        if: runner.os == 'Windows'
+        run: choco install innosetup --yes --no-progress
+      - name: Generate platform icons
+        run: python scripts/build_icons.py
       - name: Build standalone binary
-        run: >
-          pyinstaller --onefile --name snapword
-          --add-data "snapword/themes/*${{ steps.sep.outputs.sep }}snapword/themes"
-          --hidden-import snapword.fonts
-          --hidden-import snapword.config
-          --hidden-import snapword.themes
-          --hidden-import snapword.ui
-          --hidden-import snapword.ui.editor
-          --hidden-import snapword.ui.findbar
-          --hidden-import snapword.ui.footer
-          --hidden-import snapword.ui.menubar
-          --hidden-import snapword.ui.preferences
-          --hidden-import snapword.ui.tablepicker
-          --hidden-import snapword.ui.tabs
-          --hidden-import snapword.ui.themeditor
-          --hidden-import snapword.ui.toolbar
-          --hidden-import snapword.ui.window
-          snapword/main.py
-
-      - name: Smoke test the binary
+        run: pyinstaller --noconfirm snapword.spec
+      - name: Smoke test standalone binary
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then BIN="dist/snapword.exe"; else BIN="dist/snapword"; fi
-          "$BIN" --version || true
-
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+          python scripts/check_binary.py "$BIN"
+      - name: Name standalone release asset
+        run: python scripts/package_release.py "$env:RELEASE_TAG" dist dist-release
+        if: runner.os == 'Windows'
+        shell: powershell
+      - name: Name standalone release asset
+        if: runner.os != 'Windows'
+        run: python scripts/package_release.py "$RELEASE_TAG" dist dist-release
+        shell: bash
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $version = $env:RELEASE_TAG.Substring(1)
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) { $compiler = (Get-Command iscc.exe -ErrorAction Stop).Source }
+          & $compiler "/DAppVersion=$version" "/O..\dist-release" installer/snapword.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload platform assets
+        uses: actions/upload-artifact@v4
         with:
-          files: |
-            dist/snapword
-            dist/snapword.exe
-          fail_on_unmatched_files: false
+          name: ${{ matrix.asset }}
+          path: dist-release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: github.event_name == 'push' || inputs.publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      PRERELEASE: ${{ github.event_name == 'push' || inputs.prerelease }}
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Download platform assets
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Generate checksums
+        run: python scripts/release.py checksums release-assets
+      - name: Publish or update GitHub release
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-assets/* --clobber
+            if [ "$PRERELEASE" = "true" ]; then
+              gh release edit "$RELEASE_TAG" --verify-tag --draft=false --prerelease
+            else
+              gh release edit "$RELEASE_TAG" --verify-tag --draft=false --prerelease=false --latest
+            fi
+          elif [ "$PRERELEASE" = "true" ]; then
+            gh release create "$RELEASE_TAG" release-assets/* --verify-tag --generate-notes --prerelease
+          else
+            gh release create "$RELEASE_TAG" release-assets/* --verify-tag --generate-notes
+          fi

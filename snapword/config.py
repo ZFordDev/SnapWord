@@ -42,7 +42,8 @@ def load_settings() -> dict[str, Any]:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        settings = json.loads(path.read_text(encoding="utf-8"))
+        return settings if isinstance(settings, dict) else {}
     except Exception:
         return {}
 

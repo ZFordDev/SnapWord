@@ -32,13 +32,34 @@ def load_prefs() -> dict[str, Any]:
     """Load user preferences, falling back to defaults."""
     prefs = dict(_DEFAULTS)
     prefs.update(load_settings())
+    return validated_prefs(prefs)
+
+
+def validated_prefs(values: dict) -> dict[str, Any]:
+    prefs = dict(_DEFAULTS)
+    for key in _DEFAULTS:
+        value = values.get(key, _DEFAULTS[key])
+        if key.endswith("font_size") or key == "tab_width":
+            minimum, maximum = (8, 72) if key == "editor_font_size" else (8, 24)
+            if key == "tab_width":
+                minimum, maximum = 1, 16
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and minimum <= value <= maximum:
+                prefs[key] = int(value)
+        elif key == "line_spacing":
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and value in (1.0, 1.15, 1.5, 2.0):
+                prefs[key] = float(value)
+        elif key == "editor_font_family":
+            if isinstance(value, str) and value.strip():
+                prefs[key] = value
+        elif key == "recent_files" and isinstance(value, list):
+            prefs[key] = [path for path in value if isinstance(path, str)]
     return prefs
 
 
 def save_prefs(prefs: dict[str, Any]) -> None:
     """Save user preferences to disk."""
     # Don't persist recent_files list in this save
-    to_save = {k: v for k, v in prefs.items() if k != "recent_files"}
+    to_save = {k: v for k, v in validated_prefs(prefs).items() if k != "recent_files"}
     save_settings(to_save)
 
 

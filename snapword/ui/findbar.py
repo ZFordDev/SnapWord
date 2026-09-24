@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QTextDocument
+from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtGui import QTextCursor, QTextDocument
 from PySide6.QtWidgets import (
     QCheckBox,
     QHBoxLayout,
@@ -39,6 +39,7 @@ class FindReplaceBar(QWidget):
         # Match case
         self.match_case = QCheckBox("Aa")
         self.match_case.setToolTip("Match case")
+        self.match_case.toggled.connect(self._update_result_count)
         layout.addWidget(self.match_case)
 
         # Find prev/next
@@ -102,6 +103,7 @@ class FindReplaceBar(QWidget):
     # ---------------------------------------------------------
 
     def show_replace(self) -> None:
+        self.show()
         self._replace_visible = True
         self.replace_widget.show()
         self.search_input.setFocus()
@@ -163,7 +165,9 @@ class FindReplaceBar(QWidget):
             return
 
         cursor = self._editor.textCursor()
-        if cursor.hasSelection() and cursor.selectedText() == text:
+        selected = cursor.selectedText()
+        matches = selected == text if self.match_case.isChecked() else selected.casefold() == text.casefold()
+        if cursor.hasSelection() and matches:
             cursor.insertText(replace_text)
 
         self.find_next()
@@ -211,16 +215,23 @@ class FindReplaceBar(QWidget):
             flags |= QTextDocument.FindFlag.FindCaseSensitively
 
         count = 0
-        cursor = self._editor.textCursor()
-        cursor.movePosition(cursor.MoveOperation.Start)
-        self._editor.setTextCursor(cursor)
-
-        while self._editor.find(text, flags):
+        cursor = QTextCursor(self._editor.document())
+        while True:
+            cursor = self._editor.document().find(text, cursor, flags)
+            if cursor.isNull():
+                break
             count += 1
-
-        # Restore cursor to original position
-        self._editor.setTextCursor(cursor)
         self.result_label.setText(f"{count} found" if count != 1 else "1 found")
+
+    def eventFilter(self, watched, event):
+        if watched is self.search_input and event.type() == QEvent.KeyPress:
+            if event.key() == Qt.Key_Escape:
+                self.close_requested.emit()
+                return True
+            if event.key() in (Qt.Key_Return, Qt.Key_Enter) and event.modifiers() & Qt.ShiftModifier:
+                self.find_prev()
+                return True
+        return super().eventFilter(watched, event)
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key_Escape:

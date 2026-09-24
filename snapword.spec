@@ -1,11 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import sys
+
 
 a = Analysis(
     ['snapword_launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('snapword/themes/*', 'snapword/themes')],
+    datas=[('snapword/themes/*', 'snapword/themes'), ('snapword/assets/*', 'snapword/assets')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -29,7 +31,8 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
+    icon='snapword/assets/logo.ico' if sys.platform == 'win32' else 'snapword/assets/logo.icns',
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

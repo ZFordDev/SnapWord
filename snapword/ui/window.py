@@ -1,442 +1,193 @@
-from __future__ import annotations
-
-from pathlib import Path
+"""Application composition; document, toolbar and workspace behavior live separately."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QFileDialog,
-    QHBoxLayout,
-    QMessageBox,
-    QSplitter,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget
 
+from ..branding import application_icon
+from ..fonts import make_font
 from ..themes import apply_theme_to_widget, list_themes
+from .actions import ActionRegistry
+from .documents import DocumentController
 from .editor import SnapWordEditor
-from .filetree import SnapWordFileTree
 from .findbar import FindReplaceBar
 from .footer import SnapWordFooter
+from .layout_state import WorkspaceLayout
 from .menubar import SnapWordMenuBar
+from .panels import FilesDock
 from .preferences import PreferencesDialog, load_prefs
-from .tabs import SnapWordTabBar, TabDocument
+from .tabs import SnapWordTabBar
 from .themeditor import ThemeEditorDialog
-from .toolbar import SnapWordToolbar
+from .toolbar import ToolbarManager
+from .workspace import DocumentWorkspace
 
 
-class SnapWordWindow(QWidget):
-    def __init__(self, version: str = "0.1.0") -> None:
+class SnapWordWindow(QMainWindow):
+    def __init__(self, version="0.1.0", *, settings=None):
         super().__init__()
-        self.setWindowTitle("SnapWord - Word Editor")
+        self.setWindowIcon(application_icon())
+        self.setWindowTitle("SnapWord")
         self.resize(1200, 900)
-
-        # --- Tab state ---
-        self._tabs: list[TabDocument] = []
-        self._active_tab: int = -1
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        # Menu bar
-        self.menu_bar = SnapWordMenuBar()
-        layout.addWidget(self.menu_bar)
-
-        # Formatting toolbar
         self.editor = SnapWordEditor()
-        self.toolbar = SnapWordToolbar(self.editor)
-        layout.addWidget(self.toolbar)
-
-        # Find & Replace bar (hidden by default)
+        self.tab_bar = SnapWordTabBar()
         self.find_bar = FindReplaceBar(self.editor)
         self.find_bar.hide()
         self.find_bar.close_requested.connect(self._close_find_bar)
-        layout.addWidget(self.find_bar)
-
-        # Tab bar
-        self.tab_bar = SnapWordTabBar()
-        layout.addWidget(self.tab_bar)
-
-        # Main splitter: file tree + centered page workspace
-        self._splitter = QSplitter(Qt.Horizontal)
-        self._splitter.setObjectName("AppContainer")
-        self._splitter.setHandleWidth(1)
-        self._splitter.setChildrenCollapsible(False)
-
-        self.file_tree = SnapWordFileTree()
-        self._splitter.addWidget(self.file_tree)
-
-        # Centered page workspace (gray background, white page)
-        workspace = QWidget()
-        workspace.setObjectName("PageWorkspace")
-        workspace_layout = QHBoxLayout(workspace)
-        workspace_layout.setContentsMargins(0, 0, 0, 0)
-        workspace_layout.setSpacing(0)
-        workspace_layout.addStretch(1)
-
-        # White page container (percentage-based width)
-        self._page_container = QWidget()
-        self._page_container.setObjectName("PageContainer")
-        self._page_container.setMinimumWidth(500)
-        page_layout = QVBoxLayout(self._page_container)
-        page_layout.setContentsMargins(0, 24, 0, 24)
-        page_layout.setSpacing(0)
-        page_layout.addWidget(self.editor)
-
-        workspace_layout.addWidget(self._page_container, 3)
-        workspace_layout.addStretch(1)
-
-        self._splitter.addWidget(workspace)
-        self._splitter.setStretchFactor(0, 0)
-        self._splitter.setStretchFactor(1, 1)
-
-        layout.addWidget(self._splitter, 1)
-
-        # Footer
+        self.page_scroll_area = DocumentWorkspace(self.editor)
+        self._page_container = self.page_scroll_area.page
         self.footer = SnapWordFooter(version)
+        root = QWidget()
+        layout = QVBoxLayout(root)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        for widget in (self.tab_bar, self.find_bar):
+            layout.addWidget(widget)
+        layout.addWidget(self.page_scroll_area, 1)
         layout.addWidget(self.footer)
+        self.setCentralWidget(root)
 
-        # Default: file tree hidden (word editor is document-centric)
-        self.file_tree.hide()
-
-        # Default theme
-        self._current_theme = "light"
-        self.apply_theme("light")
-        self._refresh_theme_menu()
-
-        # Apply user prefs
-        prefs = load_prefs()
-        self._apply_prefs(prefs)
-
-        # Wire signals
-        self.editor.metrics_changed.connect(self.footer.update_metrics)
-        self.editor.file_dirty_changed.connect(self._on_editor_dirty_changed)
-        self.editor.cursorPositionChanged.connect(self._on_cursor_position_changed)
+        self.file_tree_dock = FilesDock(self)
+        self.file_tree = self.file_tree_dock.tree
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.file_tree_dock)
+        self.documents = DocumentController(self, self.editor, self.tab_bar)
+        self.actions = ActionRegistry(self)
+        self.toolbar = ToolbarManager(self, self.editor, self.actions)
+        self.toolbar_sections = self.toolbar.sections
+        self._register_commands()
+        self.menu_bar = SnapWordMenuBar(self.actions, self)
+        self.setMenuBar(self.menu_bar)
+        for bar in self.toolbar_sections.values():
+            self.menu_bar.toolbar_menu.addAction(bar.toggleViewAction())
+        files_action = self.file_tree_dock.toggleViewAction()
+        files_action.setShortcut("Ctrl+Shift+F")
+        self.menu_bar.view_menu.insertAction(self.actions["view.reset"], files_action)
+        self.menu_bar.action_view_filetree = files_action
         self.file_tree.file_opened.connect(self.load_file)
+        self.editor.metrics_changed.connect(self.footer.update_metrics)
+        self.editor.cursorPositionChanged.connect(self._on_cursor_position_changed)
 
-        # --- Wire menu actions ---
-        self.menu_bar.action_open.triggered.connect(self._on_open)
-        self.menu_bar.action_save.triggered.connect(self._on_save)
-        self.menu_bar.action_save_as.triggered.connect(self._on_save_as)
-        self.menu_bar.action_theme_light.triggered.connect(lambda: self.apply_theme("light"))
-        self.menu_bar.action_theme_dark.triggered.connect(lambda: self.apply_theme("dark"))
-        self.menu_bar.action_theme_edit.triggered.connect(self._open_theme_editor)
-        self.menu_bar.action_view_filetree.triggered.connect(self._toggle_file_tree)
-        self.menu_bar.action_find.triggered.connect(self._open_find_replace)
-        self.menu_bar.action_find_simple.triggered.connect(self._open_find)
-        self.menu_bar.action_print.triggered.connect(self.editor.print_document)
-        self.menu_bar.action_export_pdf.triggered.connect(self.editor.export_pdf)
-        self.menu_bar.action_preferences.triggered.connect(self._open_preferences)
+        # Capture and restore only after every named toolbar and dock exists.
+        self.workspace_layout = WorkspaceLayout(self, self.toolbar, self.file_tree_dock, settings)
+        self._refresh_theme_menu()
+        self.apply_theme(self.workspace_layout.settings.value("theme", "light"))
+        self._apply_prefs(load_prefs())
+        self.documents.new()
+        self.workspace_layout.restore()
 
-        # --- Wire tab bar ---
-        self.tab_bar.tab_changed.connect(self._on_tab_changed)
-        self.tab_bar.tab_close_requested.connect(self._on_tab_close_requested)
-        self.tab_bar.new_tab_requested.connect(self._new_tab)
-
-        # Create first tab
-        self._new_tab()
-        self.set_view_mode("split")
-
-    # ---------------------------------------------------------
-    # Tab management
-    # ---------------------------------------------------------
-
-    def _new_tab(self) -> None:
-        doc = TabDocument()
-        self._tabs.append(doc)
-        idx = self.tab_bar.add_tab(doc.label)
-        self.tab_bar.set_current_index(idx)
-
-    def _on_tab_changed(self, idx: int) -> None:
-        if idx == self._active_tab:
-            return
-        if idx < 0 or idx >= len(self._tabs):
-            return
-        self._save_tab_state(self._active_tab)
-        self._active_tab = idx
-        self._load_tab_state(idx)
-        self._update_title_dirty(self._tabs[idx].dirty)
-
-    def _on_tab_close_requested(self, idx: int) -> None:
-        if idx < 0 or idx >= len(self._tabs):
-            return
-        doc = self._tabs[idx]
-        if doc.dirty:
-            reply = QMessageBox.question(
-                self,
-                "Unsaved Changes",
-                f'"{doc.label}" has unsaved changes. Save before closing?',
-                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
-                QMessageBox.Save,
-            )
-            if reply == QMessageBox.Save:
-                if doc.path:
-                    self._save_tab_state(idx)
-                    old_active = self._active_tab
-                    self._active_tab = idx
-                    self._load_tab_state(idx)
-                    self.editor.save_file()
-                    doc.dirty = False
-                    self._active_tab = old_active
-                    if old_active >= 0:
-                        self._load_tab_state(old_active)
-                else:
-                    return
-            elif reply == QMessageBox.Cancel:
-                return
-
-        self.tab_bar.remove_tab(idx)
-        self._tabs.pop(idx)
-
-        if not self._tabs:
-            self._new_tab()
-            return
-
-        if self._active_tab >= len(self._tabs):
-            self._active_tab = len(self._tabs) - 1
-        elif self._active_tab > idx:
-            self._active_tab -= 1
-
-        self.tab_bar.set_current_index(self._active_tab)
-        self._load_tab_state(self._active_tab)
-        self._update_title_dirty(self._tabs[self._active_tab].dirty)
-
-    def _save_tab_state(self, idx: int) -> None:
-        if idx < 0 or idx >= len(self._tabs):
-            return
-        doc = self._tabs[idx]
-        doc.html = self.editor.toHtml()
-        cursor = self.editor.textCursor()
-        doc.cursor_block = cursor.blockNumber()
-        doc.cursor_col = cursor.columnNumber()
-        doc.path = self.editor.current_path()
-        doc.dirty = self.editor.is_dirty()
-        if doc.path:
-            doc.label = Path(doc.path).name
-
-    def _load_tab_state(self, idx: int) -> None:
-        if idx < 0 or idx >= len(self._tabs):
-            return
-        doc = self._tabs[idx]
-
-        # Disconnect to avoid re-triggering during load
-        self.editor.file_dirty_changed.disconnect(self._on_editor_dirty_changed)
-        if doc.html:
-            self.editor.setHtml(doc.html)
-        else:
-            self.editor.setPlainText("")
-        self.editor.file_dirty_changed.connect(self._on_editor_dirty_changed)
-
-        # Restore cursor
-        from PySide6.QtGui import QTextCursor
-
-        cursor = self.editor.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
-        for _ in range(doc.cursor_block):
-            cursor.movePosition(QTextCursor.MoveOperation.NextBlock)
-        cursor.movePosition(
-            QTextCursor.MoveOperation.Right,
-            QTextCursor.MoveMode.MoveAnchor,
-            doc.cursor_col,
+    def _register_commands(self):
+        commands = (
+            ("file.new", "New document", self.documents.new, "Ctrl+N"),
+            ("file.open", "Open File…", self.documents.open_dialog, "Ctrl+O"),
+            ("file.folder", "Open Folder…", self.documents.open_folder, None),
+            ("file.save", "Save", self.documents.save, "Ctrl+S"),
+            ("file.save_as", "Save As…", self.documents.save_as, "Ctrl+Shift+S"),
+            ("edit.find", "Find", self._open_find, "Ctrl+F"),
+            ("edit.replace", "Find & Replace", self._open_find_replace, "Ctrl+H"),
+            ("edit.preferences", "Preferences…", self._open_preferences, "Ctrl+,"),
+            ("view.reset", "Reset Workspace Layout", self._reset_workspace_layout, None),
+            ("theme.edit", "Edit Themes…", self._open_theme_editor, None),
         )
-        self.editor.setTextCursor(cursor)
+        for key, label, callback, shortcut in commands:
+            self.actions.add(key, label, callback, shortcut=shortcut)
+        for extension in ("rtf", "txt", "html", "md"):
+            self.actions.add(
+                f"file.{extension}",
+                f"Export as {extension.upper()}",
+                lambda checked=False, ext=extension: self.documents.export("." + ext),
+            )
+        for name in ("light", "dark"):
+            self.actions.add(
+                f"theme.{name}", name.title(), lambda checked=False, theme=name: self.apply_theme(theme), checkable=True
+            )
 
-        # Restore path and dirty state
-        self.editor._current_path = doc.path
-        self.editor._dirty = doc.dirty
-        self.editor.file_dirty_changed.emit(doc.dirty)
+    def _reset_workspace_layout(self):
+        self.workspace_layout.reset()
 
-        # Update tab label and dirty indicator
-        self.tab_bar.set_tab_label(idx, doc.label)
-        self.tab_bar.set_tab_dirty(idx, doc.dirty)
+    def _toggle_file_tree(self):
+        self.file_tree_dock.setVisible(self.file_tree_dock.isHidden())
 
-    def _on_editor_dirty_changed(self, dirty: bool) -> None:
-        if 0 <= self._active_tab < len(self._tabs):
-            self._tabs[self._active_tab].dirty = dirty
-            self.tab_bar.set_tab_dirty(self._active_tab, dirty)
-        self._update_title_dirty(dirty)
-
-    # ---------------------------------------------------------
-    # View menu
-    # ---------------------------------------------------------
-
-    def _toggle_file_tree(self) -> None:
-        if self.file_tree.isVisible():
-            self.file_tree.hide()
-            self.menu_bar.action_view_filetree.setChecked(False)
-        else:
-            self.file_tree.show()
-            self.menu_bar.action_view_filetree.setChecked(True)
-
-    def _open_find_replace(self) -> None:
-        self.find_bar.show_replace()
-        self.find_bar.focus_search()
-
-    def _open_find(self) -> None:
+    def _open_find(self):
+        self.find_bar.replace_widget.hide()
         self.find_bar.show()
         self.find_bar.focus_search()
 
-    def _close_find_bar(self) -> None:
+    def _open_find_replace(self):
+        self.find_bar.show_replace()
+        self.find_bar.focus_search()
+
+    def _close_find_bar(self):
         self.find_bar.hide()
         self.editor.setFocus()
 
-    def set_view_mode(self, mode: str) -> None:
-        """Stub for future view modes (page view, draft, etc.)."""
-        pass
-
-    # ---------------------------------------------------------
-    # File operations
-    # ---------------------------------------------------------
-
-    def _on_open(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Open Document", "",
-            "SnapWord Files (*.docs);;HTML Files (*.html *.htm);;All Files (*)",
-        )
-        if path:
-            self.load_file(path)
-
-    def _on_save(self) -> None:
-        if self._active_tab < 0:
-            return
-        doc = self._tabs[self._active_tab]
-        if doc.path:
-            self.editor.save_file()
-            doc.dirty = False
-            self.tab_bar.set_tab_dirty(self._active_tab, False)
-            self._update_title_dirty(False)
-        else:
-            self._on_save_as()
-
-    def _on_save_as(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Save Document", "",
-            "SnapWord Files (*.docs);;HTML Files (*.html);;All Files (*)",
-        )
-        if path:
-            self.editor.save_file(path)
-            if self._active_tab >= 0:
-                doc = self._tabs[self._active_tab]
-                doc.path = path
-                doc.label = Path(path).name
-                doc.dirty = False
-                self.tab_bar.set_tab_label(self._active_tab, doc.label)
-                self.tab_bar.set_tab_dirty(self._active_tab, False)
-            self._update_title_dirty(False)
-
-    # ---------------------------------------------------------
-    # Theme
-    # ---------------------------------------------------------
-
-    def apply_theme(self, theme_name: str) -> None:
+    def apply_theme(self, theme_name):
         apply_theme_to_widget(self, theme_name)
         self._current_theme = theme_name
         self.menu_bar.set_active_theme(theme_name)
 
-    def _refresh_theme_menu(self) -> None:
+    def _refresh_theme_menu(self):
         self.menu_bar.clear_user_theme_actions()
-        themes = list_themes()
-        for name, info in sorted(themes.items()):
+        for name, info in sorted(list_themes().items()):
             if not info["builtin"]:
                 action = self.menu_bar.add_user_theme_action(name)
-                action.triggered.connect(lambda checked, n=name: self.apply_theme(n))
+                action.triggered.connect(lambda checked=False, theme=name: self.apply_theme(theme))
 
-    def _open_theme_editor(self, initial_name: str = "", initial_colors: dict | None = None) -> None:
-        dialog = ThemeEditorDialog(self, initial_name=initial_name, initial_colors=initial_colors)
+    def _open_theme_editor(self):
+        dialog = ThemeEditorDialog(self)
         dialog.theme_saved.connect(self._on_theme_saved)
         dialog.exec()
 
-    def _on_theme_saved(self, theme_name: str) -> None:
+    def _on_theme_saved(self, name):
         self._refresh_theme_menu()
-        self.apply_theme(theme_name)
+        self.apply_theme(name)
 
-    def _open_preferences(self) -> None:
+    def _open_preferences(self):
         dialog = PreferencesDialog(self)
         dialog.prefs_changed.connect(self._apply_prefs)
         dialog.exec()
 
-    def _apply_prefs(self, prefs: dict) -> None:
-        """Apply user preferences to the editor and UI."""
-        from PySide6.QtGui import QFont
+    def _apply_prefs(self, prefs):
+        size = self._valid_size(prefs.get("editor_font_size"), 12)
+        font = make_font([str(prefs.get("editor_font_family", "Arial"))], size)
+        self.editor.setFont(font)
+        self.editor.document().setDefaultFont(font)
+        try:
+            spacing = float(prefs.get("line_spacing", 1.5))
+            self.editor.default_line_spacing = spacing if 0.5 <= spacing <= 4 else 1.5
+        except (TypeError, ValueError):
+            self.editor.default_line_spacing = 1.5
+        self.toolbar.set_font_size(self._valid_size(prefs.get("toolbar_font_size"), 13))
+        sidebar_size = self._valid_size(prefs.get("sidebar_font_size"), 13)
+        footer_size = self._valid_size(prefs.get("footer_font_size"), 11)
+        self.file_tree.setStyleSheet(f"QTreeView {{ font-size: {sidebar_size}px; }}")
+        self.footer.setStyleSheet(f"QLabel {{ font-size: {footer_size}px; }}")
 
-        font_family = prefs.get("editor_font_family", "Arial")
-        font_size = prefs.get("editor_font_size", 12)
-        self.editor.setFont(QFont(font_family, font_size))
+    @staticmethod
+    def _valid_size(value, default):
+        try:
+            return max(1, min(512, int(value)))
+        except (TypeError, ValueError, OverflowError):
+            return default
 
-        spacing = prefs.get("line_spacing", 1.5)
-        self.editor.set_line_spacing(spacing)
-
-        # Update toolbar font size via stylesheet
-        tb_size = prefs.get("toolbar_font_size", 13)
-        self.toolbar.setStyleSheet(f"QToolBar QToolButton {{ font-size: {tb_size}px; }}")
-
-    # ---------------------------------------------------------
-    # Title / dirty state
-    # ---------------------------------------------------------
-
-    def _update_title_dirty(self, dirty: bool) -> None:
-        title = "SnapWord - Word Editor"
-        if 0 <= self._active_tab < len(self._tabs):
-            doc = self._tabs[self._active_tab]
-            if doc.path:
-                title += f" \u2014 {doc.path}"
-        if dirty:
-            title += " \u2022"
-        self.setWindowTitle(title)
-
-    # ---------------------------------------------------------
-    # Public helpers
-    # ---------------------------------------------------------
-
-    def load_file(self, path: str) -> None:
-        # Check if file is already open in a tab
-        for idx, doc in enumerate(self._tabs):
-            if doc.path == path:
-                self.tab_bar.set_current_index(idx)
-                return
-
-        doc = TabDocument.from_path(path)
-        idx = self.tab_bar.add_tab(doc.label)
-        self._tabs.append(doc)
-        self.tab_bar.set_current_index(idx)
-
-    # ---------------------------------------------------------
-    # Footer cursor
-    # ---------------------------------------------------------
-
-    def _on_cursor_position_changed(self) -> None:
+    def _on_cursor_position_changed(self):
         cursor = self.editor.textCursor()
         self.footer.update_cursor_position(cursor.blockNumber() + 1, cursor.columnNumber() + 1)
 
-    # ---------------------------------------------------------
-    # Close confirmation
-    # ---------------------------------------------------------
+    def load_file(self, path):
+        self.documents.load_file(path)
 
-    def closeEvent(self, event) -> None:
-        self._save_tab_state(self._active_tab)
+    def _new_tab(self):
+        self.documents.new()
 
-        dirty_tabs = [doc for doc in self._tabs if doc.dirty]
-        if not dirty_tabs:
-            event.accept()
-            return
+    @property
+    def _tabs(self):
+        return self.documents.tabs
 
-        reply = QMessageBox.question(
-            self,
-            "Unsaved Changes",
-            f"{len(dirty_tabs)} document(s) have unsaved changes. Save before closing?",
-            QMessageBox.SaveAll | QMessageBox.Discard | QMessageBox.Cancel,
-            QMessageBox.SaveAll,
-        )
+    @property
+    def _active_tab(self):
+        return self.documents.active
 
-        if reply == QMessageBox.SaveAll:
-            for idx, doc in enumerate(self._tabs):
-                if doc.dirty and doc.path:
-                    self._active_tab = idx
-                    self._load_tab_state(idx)
-                    self.editor.save_file()
-                    doc.dirty = False
-            event.accept()
-        elif reply == QMessageBox.Discard:
+    def closeEvent(self, event):
+        if self.documents.confirm_close():
+            self.workspace_layout.save()
             event.accept()
         else:
             event.ignore()

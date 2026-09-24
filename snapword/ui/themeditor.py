@@ -14,13 +14,14 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
-from ..themes import THEME_COLORS, list_themes, save_theme_colors
+from ..themes import THEME_COLORS, list_themes, resolved_colors, save_theme_colors
 
 # Human-readable labels for each color key
 _COLOR_LABELS: dict[str, str] = {
@@ -129,6 +130,7 @@ class ThemeEditorDialog(QDialog):
         themes = list_themes()
         for name in sorted(themes):
             self.base_combo.addItem(name)
+        self.base_combo.setCurrentText((initial_colors or {}).get("_base", "light"))
         self.base_combo.currentTextChanged.connect(self._on_base_changed)
         base_row.addWidget(self.base_combo)
         root.addLayout(base_row)
@@ -179,7 +181,10 @@ class ThemeEditorDialog(QDialog):
         self._update_preview()
 
     def _on_base_changed(self, base: str) -> None:
-        pass  # Base theme is just metadata; colors are independent
+        for key, color in resolved_colors(base).items():
+            if key in self._color_buttons:
+                self._color_buttons[key].set_color(color)
+        self._update_preview()
 
     def _update_preview(self) -> None:
         colors = self.get_colors()
@@ -209,7 +214,12 @@ class ThemeEditorDialog(QDialog):
             return
 
         colors = self.get_colors()
-        colors["_base"] = self.get_base_theme()
-        save_theme_colors(name, colors)
+        # Store a complete palette with a built-in fallback, avoiding chained themes.
+        colors["_base"] = self.get_base_theme() if self.get_base_theme() in ("light", "dark") else "light"
+        try:
+            save_theme_colors(name, colors)
+        except (ValueError, OSError) as exc:
+            QMessageBox.warning(self, "Theme could not be saved", str(exc))
+            return
         self.theme_saved.emit(name)
         self.accept()

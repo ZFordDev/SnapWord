@@ -4,6 +4,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QWidget
 
+from snapword.formats import load_as_html, save_document
 from snapword.themes import (
     THEME_COLORS,
     apply_theme_to_widget,
@@ -163,6 +164,19 @@ class SnapWordEditorTests(unittest.TestCase):
         self.assertEqual(editor.alignment(), Qt.AlignLeft)
 
 
+class DocumentFormatTests(unittest.TestCase):
+    def test_requested_document_formats_round_trip(self) -> None:
+        html = "<h1>Hello</h1><p>SnapWord</p>"
+        plain_text = "Hello\nSnapWord"
+        suffixes = (".docs", ".docx", ".odt", ".rtf", ".txt", ".html", ".md")
+
+        with tempfile.TemporaryDirectory() as directory:
+            for suffix in suffixes:
+                path = str(Path(directory) / f"document{suffix}")
+                save_document(path, html, plain_text)
+                self.assertIn("Hello", load_as_html(path), suffix)
+
+
 class TabDocumentTests(unittest.TestCase):
     def test_empty_document(self) -> None:
         doc = TabDocument()
@@ -246,6 +260,23 @@ class SnapWordWindowTests(unittest.TestCase):
     def test_file_tree_hidden_by_default(self) -> None:
         window = SnapWordWindow()
         self.assertFalse(window.file_tree.isVisible())
+
+    def test_scrollbar_belongs_to_page_workspace(self) -> None:
+        from PySide6.QtCore import Qt
+
+        window = SnapWordWindow()
+        self.assertEqual(window.editor.verticalScrollBarPolicy(), Qt.ScrollBarAlwaysOff)
+        self.assertEqual(window.page_scroll_area.verticalScrollBarPolicy(), Qt.ScrollBarAsNeeded)
+
+    def test_blank_page_fills_workspace_from_top(self) -> None:
+        window = SnapWordWindow()
+        window.resize(1200, 900)
+        window.show()
+        self.app.processEvents()
+        page = window._page_container.geometry()
+        workspace = window.page_scroll_area.widget().geometry()
+        self.assertEqual(page.y(), 0)
+        self.assertEqual(page.height(), workspace.height())
 
     def test_toggle_file_tree(self) -> None:
         window = SnapWordWindow()

@@ -3,28 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut, QTextDocument
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTabBar, QWidget
 
-_CLOSE_BTN_STYLE = """
- QPushButton#TabCloseBtn {
-     background: transparent;
-     border: none;
-     border-radius: 3px;
-     font-size: 13px;
-     font-weight: bold;
-     color: #888;
-     padding: 0px;
-     margin: 0px;
- }
- QPushButton#TabCloseBtn:hover {
-     background-color: rgba(0,0,0,0.10);
-     color: #333;
- }
- QPushButton#TabCloseBtn:pressed {
-     background-color: rgba(0,0,0,0.18);
- }
-"""
+from snapword.formats import load_as_html
 
 
 @dataclass
@@ -37,32 +19,29 @@ class TabDocument:
     cursor_col: int = 0
     dirty: bool = False
     label: str = "Untitled"
+    scroll: int = 0
+    document: QTextDocument | None = None
 
     @staticmethod
     def from_path(path: str) -> TabDocument:
         try:
-            with open(path, encoding="utf-8") as f:
-                content = f.read()
-            html = content if path.endswith((".html", ".htm", ".docs")) else ""
+            html = load_as_html(path)
         except Exception:
-            content = ""
             html = ""
         from pathlib import Path
 
         label = Path(path).name
-        return TabDocument(path=path, html=html if html else content, label=label)
+        return TabDocument(path=path, html=html, label=label)
 
 
 class _TabCloseButton(QPushButton):
     """Small x button embedded in each tab."""
 
-    def __init__(self, idx: int, parent=None) -> None:
+    def __init__(self, parent=None) -> None:
         super().__init__("\u00d7", parent)
         self.setObjectName("TabCloseBtn")
         self.setFixedSize(18, 18)
         self.setCursor(Qt.PointingHandCursor)
-        self.setStyleSheet(_CLOSE_BTN_STYLE)
-        self._tab_idx = idx
 
 
 class SnapWordTabBar(QWidget):
@@ -71,6 +50,7 @@ class SnapWordTabBar(QWidget):
     tab_changed = Signal(int)
     tab_close_requested = Signal(int)
     new_tab_requested = Signal()
+    tab_moved = Signal(int, int)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -88,42 +68,47 @@ class SnapWordTabBar(QWidget):
         self._tab_bar.setTabsClosable(False)
 
         self._tab_bar.currentChanged.connect(self.tab_changed)
+        self._tab_bar.tabMoved.connect(self.tab_moved)
         layout.addWidget(self._tab_bar, 1)
 
         self._add_btn = QPushButton("+")
         self._add_btn.setObjectName("NewTabButton")
         self._add_btn.setFixedSize(32, 28)
+        self._add_btn.setToolTip("New document (Ctrl+T)")
+        self._add_btn.setAccessibleName("New document")
         self._add_btn.clicked.connect(self.new_tab_requested)
         layout.addWidget(self._add_btn)
 
         self._new_tab_shortcut = QShortcut(QKeySequence("Ctrl+T"), self)
         self._new_tab_shortcut.activated.connect(self.new_tab_requested)
 
-        self._dirty_flags: dict[int, bool] = {}
 
     def add_tab(self, label: str) -> int:
         idx = self._tab_bar.addTab(label)
+        self._tab_bar.setTabData(idx, {"label": label, "dirty": False})
         self._tab_bar.setTabToolTip(idx, label)
-        self._dirty_flags[idx] = False
         self._sync_close_buttons()
         return idx
 
     def remove_tab(self, idx: int) -> None:
         if 0 <= idx < self._tab_bar.count():
             self._tab_bar.removeTab(idx)
-            self._dirty_flags.pop(idx, None)
-            self._reindex_dirty()
             self._sync_close_buttons()
 
     def set_tab_label(self, idx: int, label: str) -> None:
         if 0 <= idx < self._tab_bar.count():
-            self._tab_bar.setTabText(idx, label)
+            data = self._tab_bar.tabData(idx) or {"dirty": False}
+            data["label"] = label
+            self._tab_bar.setTabData(idx, data)
+            self._tab_bar.setTabText(idx, ("\u25cf " if data["dirty"] else "") + label)
             self._tab_bar.setTabToolTip(idx, label)
 
     def set_tab_dirty(self, idx: int, dirty: bool) -> None:
         if 0 <= idx < self._tab_bar.count():
-            self._dirty_flags[idx] = dirty
-            label = self._tab_bar.tabText(idx).lstrip("\u25cf ").strip()
+            data = self._tab_bar.tabData(idx)
+            data["dirty"] = dirty
+            self._tab_bar.setTabData(idx, data)
+            label = data["label"]
             prefix = "\u25cf " if dirty else ""
             self._tab_bar.setTabText(idx, prefix + label)
 
@@ -139,12 +124,16 @@ class SnapWordTabBar(QWidget):
 
     def _sync_close_buttons(self) -> None:
         for i in range(self._tab_bar.count()):
-            btn = _TabCloseButton(i, self._tab_bar)
-            btn.clicked.connect(lambda _checked, idx=i: self.tab_close_requested.emit(idx))
+            if self._tab_bar.tabButton(i, QTabBar.ButtonPosition.RightSide) is not None:
+                continue
+            btn = _TabCloseButton(self._tab_bar)
+            btn.setToolTip("Close document")
+            btn.setAccessibleName("Close document")
+            btn.clicked.connect(lambda _checked=False, button=btn: self._close_button_clicked(button))
             self._tab_bar.setTabButton(i, QTabBar.ButtonPosition.RightSide, btn)
 
-    def _reindex_dirty(self) -> None:
-        new_flags: dict[int, bool] = {}
-        for i in range(self._tab_bar.count()):
-            new_flags[i] = self._dirty_flags.get(i, False)
-        self._dirty_flags = new_flags
+    def _close_button_clicked(self, button) -> None:
+        for index in range(self.count()):
+            if self._tab_bar.tabButton(index, QTabBar.ButtonPosition.RightSide) is button:
+                self.tab_close_requested.emit(index)
+                return
