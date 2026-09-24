@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="SnapWord Otter is an experimental, local-first word processor for everyday documents. No accounts, cloud dependency, or telemetry.">
+    <meta name="theme-color" content="#fff7fb">
+    <title>SnapWord Otter — local-first writing</title>
+    <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/ZFordDev/SnapWord/main/snapword/assets/logo.svg">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="page">
+      <div class="wrap">
+        <nav>
+          <a class="brand" href="." aria-label="SnapWord home">
+            <img src="https://raw.githubusercontent.com/ZFordDev/SnapWord/main/snapword/assets/logo.svg" alt="">
+            <span>SnapWord <small>OTTER</small></span>
+          </a>
+          <div class="links">
+            <a href="#features">Features</a>
+            <a href="#downloads">Downloads</a>
+            <a href="https://github.com/ZFordDev/SnapWord">GitHub ↗</a>
+          </div>
+        </nav>
+        <main>
+          <section class="hero">
+            <div>
+              <div class="eyebrow">Local-first word processor · Otter edition</div>
+              <h1>Just you<br>and the page.</h1>
+              <p class="hero-copy">A lightweight word processor for normal documents: write, format, add images and tables, then print or export to PDF. Your files stay on your computer.</p>
+              <p class="experiment-note"><span aria-hidden="true">✳</span> Experimental software — early builds may change and have rough edges.</p>
+              <div class="actions">
+                <a class="button primary" href="https://github.com/ZFordDev/SnapWord/releases/latest">Get SnapWord <span aria-hidden="true">&nbsp;→</span></a>
+                <a class="button ghost" href="#features">Explore features</a>
+              </div>
+              <p class="privacy-line">No accounts. No cloud dependency. No telemetry.</p>
+            </div>
+            <div class="monitor" aria-label="SnapWord document preview">
+              <div class="glass">
+                <div class="document-top"><span class="doc-dot"></span><span class="doc-dot"></span><span class="doc-dot"></span><span class="doc-name">weekend-notes.docs</span></div>
+                <div class="document">
+                  <div class="doc-kicker">A LITTLE SPACE TO THINK</div>
+                  <div class="doc-heading">Notes for<br>a slower day</div>
+                  <div class="doc-rule"></div>
+                  <div class="doc-text wide"></div><div class="doc-text"></div><div class="doc-text short"></div>
+                  <div class="doc-highlight">Make room for the good ideas.</div>
+                  <div class="doc-text wide"></div><div class="doc-text short"></div>
+                </div>
+                <div class="preview-foot"><span>Saved on this device</span><span>.DOCS</span></div>
+              </div>
+            </div>
+          </section>
+          <section class="section features" id="features">
+            <div class="section-heading">
+              <div><div class="eyebrow">Writing, without the fuss</div><h2>Everything you need.<br>Nothing asking for an account.</h2></div>
+              <p>SnapWord is a Python and Qt desktop app, rebuilt for the Snap Ocean Suite. It opens as a writing tool, not a service you have to sign into.</p>
+            </div>
+            <div class="feature-grid">
+              <article class="feature-card"><span class="feature-icon">✍</span><h3>Rich text, ready</h3><p>Style text, headings and lists. Add links, quotes, images, tables and more.</p></article>
+              <article class="feature-card"><span class="feature-icon">▤</span><h3>Your documents, local</h3><p>Save native <code>.docs</code> files wherever you like. No cloud sync or telemetry.</p></article>
+              <article class="feature-card"><span class="feature-icon">☼</span><h3>Comfortable to use</h3><p>Work across document tabs, find and replace, and choose light or dark themes.</p></article>
+              <article class="feature-card"><span class="feature-icon">↗</span><h3>Bring files along</h3><p>Open and save DOCX or ODT, and import or export common text formats.</p></article>
+              <article class="feature-card"><span class="feature-icon">▧</span><h3>Print and PDF</h3><p>Print your work or export a PDF directly from SnapWord.</p></article>
+              <article class="feature-card"><span class="feature-icon">🦦</span><h3>Meet Otter</h3><p>The Otter edition is a fresh Python and Qt chapter for SnapWord.</p></article>
+            </div>
+            <p class="format-note"><strong>Formats:</strong> Open and save <code>.docs</code>, <code>.docx</code>, <code>.odt</code>. Import <code>.rtf</code>, <code>.txt</code>, <code>.html</code>, <code>.md</code>. Export PDF and common text formats. Some complex Word and ODT layouts may not convert exactly.</p>
+          </section>
+          <section class="section download-section" id="downloads">
+            <div class="wrap archive">
+              <div class="section-heading"><div><div class="eyebrow">Early access</div><h2>Take Otter for a swim.</h2></div><p>SnapWord is experimental software in active development. Releases may change; please keep backups of important documents and share bugs or ideas on GitHub.</p></div>
+              <div class="tools">
+                <input id="releaseSearch" class="search" type="search" placeholder="Search versions or packages…" aria-label="Search releases">
+                <button class="filter active" data-platform="all">All</button><button class="filter" data-platform="windows">Windows</button><button class="filter" data-platform="macos">macOS</button><button class="filter" data-platform="linux">Linux</button>
+              </div>
+              <p id="releaseStatus" role="status">Loading SnapWord releases from GitHub…</p><div id="releaseList"></div>
+              <noscript><p>JavaScript is required for the release archive. <a href="https://github.com/ZFordDev/SnapWord/releases">Browse GitHub Releases</a>.</p></noscript>
+            </div>
+          </section>
+        </main>
+        <footer><div class="footer-side"><span>© 2026 SnapWord · Open source under the MIT License.</span><span>Local-first. No telemetry. No nonsense.</span></div><a href="https://github.com/ZFordDev/SnapWord">View source ↗</a></footer>
+      </div>
+    </div>
+    <script src="script.js" type="module"></script>
+  </body>
+</html>
