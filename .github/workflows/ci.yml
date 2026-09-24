@@ -15,8 +15,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python: ['3.10', '3.12']
-    env:
+env:
       QT_QPA_PLATFORM: offscreen
+      SNAPWORD_CONFIG_DIR: ${{ runner.temp }}/snapword-test
     steps:
       - uses: actions/checkout@v4
       - name: Install Qt runtime libraries (Linux)
