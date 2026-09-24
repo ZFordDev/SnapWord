@@ -1,4 +1,4 @@
-"""Theme manager for StaxWord — handles built-in and user-defined themes."""
+"""Theme manager for SnapWord — handles built-in and user-defined themes."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 # Directory where user themes are stored
-_USER_THEMES_DIR = Path.home() / ".config" / "staxoffice" / "StaxWord" / "themes"
+_USER_THEMES_DIR = Path.home() / ".config" / "staxoffice" / "SnapWord" / "themes"
 
 # Semantic color keys for the theme editor
 THEME_COLORS: dict[str, str] = {

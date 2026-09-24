@@ -1,4 +1,4 @@
-"""Preferences dialog for StaxWord — font sizes, default settings."""
+"""Preferences dialog for SnapWord — font sizes, default settings."""
 
 import contextlib
 import json
@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_PREFS_PATH = Path.home() / ".config" / "staxoffice" / "StaxWord" / "prefs.json"
+_PREFS_PATH = Path.home() / ".config" / "staxoffice" / "SnapWord" / "prefs.json"
 
 _DEFAULTS: dict[str, Any] = {
     "editor_font_family": "Arial",

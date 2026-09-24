@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .editor import StaxWordEditor
+from .editor import SnapWordEditor
 
 _FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72]
 
@@ -26,8 +26,8 @@ class _ToolbarSection:
         self.visible: bool = True
 
 
-class StaxWordToolbar(QToolBar):
-    def __init__(self, editor: StaxWordEditor, parent=None) -> None:
+class SnapWordToolbar(QToolBar):
+    def __init__(self, editor: SnapWordEditor, parent=None) -> None:
         super().__init__("Formatting", parent)
         self.setMovable(False)
         self.setFloatable(False)

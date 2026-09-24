@@ -13,21 +13,21 @@ from PySide6.QtWidgets import (
 )
 
 from ..themes import apply_theme_to_widget, list_themes
-from .editor import StaxWordEditor
-from .filetree import StaxWordFileTree
+from .editor import SnapWordEditor
+from .filetree import SnapWordFileTree
 from .findbar import FindReplaceBar
-from .footer import StaxWordFooter
-from .menubar import StaxWordMenuBar
+from .footer import SnapWordFooter
+from .menubar import SnapWordMenuBar
 from .preferences import PreferencesDialog, load_prefs
-from .tabs import StaxWordTabBar, TabDocument
+from .tabs import SnapWordTabBar, TabDocument
 from .themeditor import ThemeEditorDialog
-from .toolbar import StaxWordToolbar
+from .toolbar import SnapWordToolbar
 
 
-class StaxWordWindow(QWidget):
+class SnapWordWindow(QWidget):
     def __init__(self, version: str = "0.1.0") -> None:
         super().__init__()
-        self.setWindowTitle("StaxWord - Word Editor")
+        self.setWindowTitle("SnapWord - Word Editor")
         self.resize(1200, 900)
 
         # --- Tab state ---
@@ -39,12 +39,12 @@ class StaxWordWindow(QWidget):
         layout.setSpacing(0)
 
         # Menu bar
-        self.menu_bar = StaxWordMenuBar()
+        self.menu_bar = SnapWordMenuBar()
         layout.addWidget(self.menu_bar)
 
         # Formatting toolbar
-        self.editor = StaxWordEditor()
-        self.toolbar = StaxWordToolbar(self.editor)
+        self.editor = SnapWordEditor()
+        self.toolbar = SnapWordToolbar(self.editor)
         layout.addWidget(self.toolbar)
 
         # Find & Replace bar (hidden by default)
@@ -54,7 +54,7 @@ class StaxWordWindow(QWidget):
         layout.addWidget(self.find_bar)
 
         # Tab bar
-        self.tab_bar = StaxWordTabBar()
+        self.tab_bar = SnapWordTabBar()
         layout.addWidget(self.tab_bar)
 
         # Main splitter: file tree + centered page workspace
@@ -63,7 +63,7 @@ class StaxWordWindow(QWidget):
         self._splitter.setHandleWidth(1)
         self._splitter.setChildrenCollapsible(False)
 
-        self.file_tree = StaxWordFileTree()
+        self.file_tree = SnapWordFileTree()
         self._splitter.addWidget(self.file_tree)
 
         # Centered page workspace (gray background, white page)
@@ -93,7 +93,7 @@ class StaxWordWindow(QWidget):
         layout.addWidget(self._splitter, 1)
 
         # Footer
-        self.footer = StaxWordFooter(version)
+        self.footer = SnapWordFooter(version)
         layout.addWidget(self.footer)
 
         # Default: file tree hidden (word editor is document-centric)
@@ -291,7 +291,7 @@ class StaxWordWindow(QWidget):
     def _on_open(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self, "Open Document", "",
-            "StaxWord Files (*.staxdoc);;HTML Files (*.html *.htm);;All Files (*)",
+            "SnapWord Files (*.docs);;HTML Files (*.html *.htm);;All Files (*)",
         )
         if path:
             self.load_file(path)
@@ -311,7 +311,7 @@ class StaxWordWindow(QWidget):
     def _on_save_as(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
             self, "Save Document", "",
-            "StaxWord Files (*.staxdoc);;HTML Files (*.html);;All Files (*)",
+            "SnapWord Files (*.docs);;HTML Files (*.html);;All Files (*)",
         )
         if path:
             self.editor.save_file(path)
@@ -375,7 +375,7 @@ class StaxWordWindow(QWidget):
     # ---------------------------------------------------------
 
     def _update_title_dirty(self, dirty: bool) -> None:
-        title = "StaxWord - Word Editor"
+        title = "SnapWord - Word Editor"
         if 0 <= self._active_tab < len(self._tabs):
             doc = self._tabs[self._active_tab]
             if doc.path:

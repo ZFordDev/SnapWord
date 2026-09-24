@@ -4,7 +4,7 @@ from PySide6.QtCore import QDir, Signal
 from PySide6.QtWidgets import QFileSystemModel, QTreeView
 
 
-class StaxWordFileTree(QTreeView):
+class SnapWordFileTree(QTreeView):
     file_opened = Signal(str)
 
     def __init__(self) -> None:

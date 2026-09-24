@@ -4,7 +4,7 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from .ui.window import StaxWordWindow
+from .ui.window import SnapWordWindow
 
 
 def launch(file_path: str | None = None) -> int:
@@ -12,7 +12,7 @@ def launch(file_path: str | None = None) -> int:
     if app is None:
         app = QApplication(sys.argv)
 
-    window = StaxWordWindow()
+    window = SnapWordWindow()
     if file_path:
         window.load_file(file_path)
     window.show()

@@ -43,7 +43,7 @@ class TabDocument:
         try:
             with open(path, encoding="utf-8") as f:
                 content = f.read()
-            html = content if path.endswith((".html", ".htm", ".staxdoc")) else ""
+            html = content if path.endswith((".html", ".htm", ".docs")) else ""
         except Exception:
             content = ""
             html = ""
@@ -65,7 +65,7 @@ class _TabCloseButton(QPushButton):
         self._tab_idx = idx
 
 
-class StaxWordTabBar(QWidget):
+class SnapWordTabBar(QWidget):
     """Tab bar with close buttons, dirty indicator, and a + button."""
 
     tab_changed = Signal(int)

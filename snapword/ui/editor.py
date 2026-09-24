@@ -4,10 +4,10 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QTextBlockFormat, QTextCharFormat, QTextListFormat
 from PySide6.QtWidgets import QTextEdit
 
-from staxword.fonts import UI_TEXT, make_font
+from snapword.fonts import UI_TEXT, make_font
 
 
-class StaxWordEditor(QTextEdit):
+class SnapWordEditor(QTextEdit):
     metrics_changed = Signal(int, int)  # words, chars
     file_dirty_changed = Signal(bool)
     cursor_format_changed = Signal()  # emitted when cursor position/selection changes
@@ -308,7 +308,7 @@ class StaxWordEditor(QTextEdit):
             with open(path, encoding="utf-8") as f:
                 content = f.read()
 
-            if path.endswith((".html", ".htm", ".staxdoc")):
+            if path.endswith((".html", ".htm", ".docs")):
                 self.setHtml(content)
             else:
                 self.setPlainText(content)
@@ -317,13 +317,13 @@ class StaxWordEditor(QTextEdit):
             self._dirty = False
             self.file_dirty_changed.emit(False)
         except Exception as e:
-            print(f"[StaxWord] Failed to load file: {e}")
+            print(f"[SnapWord] Failed to load file: {e}")
 
     def save_file(self, path: str | None = None) -> None:
         if path is None:
             path = self._current_path
         if path is None:
-            print("[StaxWord] No file path provided for save.")
+            print("[SnapWord] No file path provided for save.")
             return
 
         try:
@@ -333,7 +333,7 @@ class StaxWordEditor(QTextEdit):
             self._dirty = False
             self.file_dirty_changed.emit(False)
         except Exception as e:
-            print(f"[StaxWord] Failed to save file: {e}")
+            print(f"[SnapWord] Failed to save file: {e}")
 
     # ---------------------------------------------------------
     # Export / Print

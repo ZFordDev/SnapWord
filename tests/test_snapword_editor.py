@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QWidget
 
-from staxword.themes import (
+from snapword.themes import (
     THEME_COLORS,
     apply_theme_to_widget,
     generate_qss,
@@ -13,28 +13,28 @@ from staxword.themes import (
     load_theme_colors,
     save_theme_colors,
 )
-from staxword.ui.editor import StaxWordEditor
-from staxword.ui.findbar import FindReplaceBar
-from staxword.ui.preferences import PreferencesDialog, load_prefs
-from staxword.ui.tablepicker import TablePickerDialog
-from staxword.ui.tabs import StaxWordTabBar, TabDocument
-from staxword.ui.themeditor import ThemeEditorDialog
-from staxword.ui.window import StaxWordWindow
+from snapword.ui.editor import SnapWordEditor
+from snapword.ui.findbar import FindReplaceBar
+from snapword.ui.preferences import PreferencesDialog, load_prefs
+from snapword.ui.tablepicker import TablePickerDialog
+from snapword.ui.tabs import SnapWordTabBar, TabDocument
+from snapword.ui.themeditor import ThemeEditorDialog
+from snapword.ui.window import SnapWordWindow
 
 
-class StaxWordEditorTests(unittest.TestCase):
+class SnapWordEditorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.app = QApplication.instance() or QApplication([])
 
     def test_editor_starts_empty_and_clean(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         self.assertEqual(editor.toPlainText(), "")
         self.assertFalse(editor.is_dirty())
         self.assertIsNone(editor.current_path())
 
     def test_text_change_sets_dirty_and_emits_metrics(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         metrics = []
         editor.metrics_changed.connect(lambda w, c: metrics.append((w, c)))
         editor.setPlainText("Hello world")
@@ -43,63 +43,63 @@ class StaxWordEditorTests(unittest.TestCase):
         self.assertEqual(metrics[-1], (2, 11))
 
     def test_bold_formatting(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_bold(True)
         self.assertTrue(editor.is_bold())
 
     def test_italic_formatting(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_italic(True)
         self.assertTrue(editor.is_italic())
 
     def test_underline_formatting(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_underline(True)
         self.assertTrue(editor.is_underline())
 
     def test_strikethrough_formatting(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_strikethrough(True)
         self.assertTrue(editor.is_strikethrough())
 
     def test_superscript_formatting(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_superscript(True)
         self.assertTrue(editor.is_superscript())
 
     def test_subscript_formatting(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_subscript(True)
         self.assertTrue(editor.is_subscript())
 
     def test_font_family(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_font_family("Courier New")
         self.assertEqual(editor.current_font_family(), "Courier New")
 
     def test_font_size(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_font_size(20)
         self.assertEqual(editor.current_font_size(), 20)
 
     def test_clear_formatting(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_bold(True)
@@ -107,7 +107,7 @@ class StaxWordEditorTests(unittest.TestCase):
         self.assertFalse(editor.is_bold())
 
     def test_heading_formatting(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Title")
         editor.selectAll()
         editor.set_heading(1)
@@ -115,40 +115,40 @@ class StaxWordEditorTests(unittest.TestCase):
         self.assertEqual(cursor.blockFormat().headingLevel(), 1)
 
     def test_insert_horizontal_rule(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Before")
         editor.insert_horizontal_rule()
         self.assertIn("<hr", editor.toHtml().lower())
 
     def test_insert_link(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.insert_link("https://example.com", "Example")
         html = editor.toHtml()
         self.assertIn("https://example.com", html)
 
     def test_save_and_load_html_round_trip(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Hello world")
         editor._dirty = False
-        with tempfile.NamedTemporaryFile(suffix=".staxdoc", delete=False, mode="w") as f:
+        with tempfile.NamedTemporaryFile(suffix=".docs", delete=False, mode="w") as f:
             path = f.name
         try:
             editor.save_file(path)
             self.assertFalse(editor.is_dirty())
-            editor2 = StaxWordEditor()
+            editor2 = SnapWordEditor()
             editor2.load_file(path)
             self.assertEqual(editor2.toPlainText(), "Hello world")
         finally:
             Path(path).unlink(missing_ok=True)
 
     def test_save_without_path_does_not_crash(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("test")
         editor.save_file()
         self.assertIsNone(editor.current_path())
 
     def test_cursor_format_signal_emitted(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         signals = []
         editor.cursor_format_changed.connect(lambda: signals.append(True))
         editor.setPlainText("Test")
@@ -156,7 +156,7 @@ class StaxWordEditorTests(unittest.TestCase):
 
     def test_alignment(self) -> None:
         from PySide6.QtCore import Qt
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.set_alignment(Qt.AlignCenter)
         self.assertEqual(editor.alignment(), Qt.AlignCenter)
         editor.set_alignment(Qt.AlignLeft)
@@ -172,7 +172,7 @@ class TabDocumentTests(unittest.TestCase):
         self.assertEqual(doc.label, "Untitled")
 
     def test_from_path(self) -> None:
-        with tempfile.NamedTemporaryFile(suffix=".staxdoc", delete=False, mode="w") as f:
+        with tempfile.NamedTemporaryFile(suffix=".docs", delete=False, mode="w") as f:
             f.write("<h1>Hello</h1><p>World</p>")
             path = f.name
         try:
@@ -187,32 +187,32 @@ class TabDocumentTests(unittest.TestCase):
         self.assertEqual(doc.label, "file.html")
 
 
-class StaxWordTabBarTests(unittest.TestCase):
+class SnapWordTabBarTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.app = QApplication.instance() or QApplication([])
 
     def test_add_and_count(self) -> None:
-        bar = StaxWordTabBar()
+        bar = SnapWordTabBar()
         bar.add_tab("Doc 1")
         bar.add_tab("Doc 2")
         self.assertEqual(bar.count(), 2)
 
     def test_remove_tab(self) -> None:
-        bar = StaxWordTabBar()
+        bar = SnapWordTabBar()
         bar.add_tab("Doc 1")
         bar.add_tab("Doc 2")
         bar.remove_tab(0)
         self.assertEqual(bar.count(), 1)
 
     def test_set_tab_label(self) -> None:
-        bar = StaxWordTabBar()
+        bar = SnapWordTabBar()
         idx = bar.add_tab("Old")
         bar.set_tab_label(idx, "New")
         self.assertEqual(bar._tab_bar.tabText(idx), "New")
 
     def test_set_tab_dirty(self) -> None:
-        bar = StaxWordTabBar()
+        bar = SnapWordTabBar()
         idx = bar.add_tab("Doc")
         bar.set_tab_dirty(idx, True)
         self.assertTrue("\u25cf" in bar._tab_bar.tabText(idx))
@@ -221,34 +221,34 @@ class StaxWordTabBarTests(unittest.TestCase):
 
     def test_close_button_exists(self) -> None:
         from PySide6.QtWidgets import QTabBar
-        bar = StaxWordTabBar()
+        bar = SnapWordTabBar()
         idx = bar.add_tab("Doc")
         btn = bar._tab_bar.tabButton(idx, QTabBar.ButtonPosition.RightSide)
         self.assertIsNotNone(btn)
 
 
-class StaxWordWindowTests(unittest.TestCase):
+class SnapWordWindowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.app = QApplication.instance() or QApplication([])
 
     def test_window_starts_with_one_tab(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertEqual(window.tab_bar.count(), 1)
         self.assertEqual(len(window._tabs), 1)
 
     def test_new_tab_creates_tab(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         window._new_tab()
         self.assertEqual(window.tab_bar.count(), 2)
         self.assertEqual(len(window._tabs), 2)
 
     def test_file_tree_hidden_by_default(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertFalse(window.file_tree.isVisible())
 
     def test_toggle_file_tree(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         window.show()
         window._toggle_file_tree()
         self.assertTrue(window.file_tree.isVisible())
@@ -256,8 +256,8 @@ class StaxWordWindowTests(unittest.TestCase):
         self.assertFalse(window.file_tree.isVisible())
 
     def test_load_file_creates_new_tab(self) -> None:
-        window = StaxWordWindow()
-        with tempfile.NamedTemporaryFile(suffix=".staxdoc", delete=False, mode="w") as f:
+        window = SnapWordWindow()
+        with tempfile.NamedTemporaryFile(suffix=".docs", delete=False, mode="w") as f:
             f.write("<p>Test</p>")
             path = f.name
         try:
@@ -267,8 +267,8 @@ class StaxWordWindowTests(unittest.TestCase):
             Path(path).unlink(missing_ok=True)
 
     def test_load_same_file_does_not_duplicate(self) -> None:
-        window = StaxWordWindow()
-        with tempfile.NamedTemporaryFile(suffix=".staxdoc", delete=False, mode="w") as f:
+        window = SnapWordWindow()
+        with tempfile.NamedTemporaryFile(suffix=".docs", delete=False, mode="w") as f:
             f.write("<p>Test</p>")
             path = f.name
         try:
@@ -279,18 +279,18 @@ class StaxWordWindowTests(unittest.TestCase):
             Path(path).unlink(missing_ok=True)
 
     def test_title_updates_with_dirty(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         window.editor.setPlainText("hello")
         self.assertTrue("\u2022" in window.windowTitle())
 
     def test_toolbar_has_sections(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertIn("font", window.toolbar.section_names())
         self.assertIn("formatting", window.toolbar.section_names())
         self.assertIn("color", window.toolbar.section_names())
 
     def test_toggle_toolbar_section(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertTrue(window.toolbar.is_section_visible("font"))
         window.toolbar.toggle_section("font", False)
         self.assertFalse(window.toolbar.is_section_visible("font"))
@@ -298,23 +298,23 @@ class StaxWordWindowTests(unittest.TestCase):
         self.assertTrue(window.toolbar.is_section_visible("font"))
 
     def test_toolbar_has_new_sections(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertIn("indent", window.toolbar.section_names())
         self.assertIn("spacing", window.toolbar.section_names())
         self.assertIn("blocks", window.toolbar.section_names())
 
     def test_find_bar_hidden_by_default(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertFalse(window.find_bar.isVisible())
 
     def test_justify_alignment(self) -> None:
         from PySide6.QtCore import Qt
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.set_justify()
         self.assertEqual(editor.alignment(), Qt.AlignJustify)
 
     def test_indent_outdent(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.set_indent()
         cursor = editor.textCursor()
@@ -325,21 +325,21 @@ class StaxWordWindowTests(unittest.TestCase):
         self.assertEqual(cursor.blockFormat().indent(), 0)
 
     def test_outdent_at_zero_does_nothing(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.set_outdent()
         cursor = editor.textCursor()
         self.assertEqual(cursor.blockFormat().indent(), 0)
 
     def test_line_spacing(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.set_line_spacing(1.5)
         # Just verify it doesn't crash
         self.assertTrue(True)
 
     def test_block_quote(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_block_quote()
@@ -347,7 +347,7 @@ class StaxWordWindowTests(unittest.TestCase):
         self.assertEqual(cursor.blockFormat().indent(), 1)
 
     def test_code_block(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Test")
         editor.selectAll()
         editor.set_code_block()
@@ -363,19 +363,19 @@ class FindReplaceBarTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def test_find_bar_starts_hidden(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         bar = FindReplaceBar(editor)
         self.assertFalse(bar.isVisible())
 
     def test_show_replace_shows_replace_widget(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         bar = FindReplaceBar(editor)
         bar.show()
         bar.show_replace()
         self.assertTrue(bar.replace_widget.isVisibleTo(bar))
 
     def test_toggle_replace(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         bar = FindReplaceBar(editor)
         bar.show()
         bar.toggle_replace()
@@ -384,7 +384,7 @@ class FindReplaceBarTests(unittest.TestCase):
         self.assertFalse(bar.replace_widget.isVisibleTo(bar))
 
     def test_find_next_with_text(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.show()
         editor.setPlainText("Hello world Hello")
         bar = FindReplaceBar(editor)
@@ -396,7 +396,7 @@ class FindReplaceBarTests(unittest.TestCase):
         self.assertTrue(True)
 
     def test_replace_all(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.show()
         editor.setPlainText("Hello world Hello")
         bar = FindReplaceBar(editor)
@@ -413,7 +413,7 @@ class ImageInsertTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def test_insert_image_from_invalid_path_is_noop(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Before")
         editor.insert_image_from_path("/nonexistent/fake.png")
         self.assertEqual(editor.toPlainText(), "Before")
@@ -430,7 +430,7 @@ class ImageInsertTests(unittest.TestCase):
             img.save(f.name, "PNG")
             tmp = f.name
 
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Before")
         editor.insert_image_from_path(tmp, max_width=50)
         html = editor.toHtml()
@@ -439,7 +439,7 @@ class ImageInsertTests(unittest.TestCase):
         Path(tmp).unlink(missing_ok=True)
 
     def test_insert_image_dialog_is_callable(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         self.assertTrue(callable(editor.insert_image_dialog))
 
 
@@ -449,7 +449,7 @@ class TableInsertTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def test_insert_table(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Before")
         editor.insert_table(3, 4)
         html = editor.toHtml()
@@ -458,13 +458,13 @@ class TableInsertTests(unittest.TestCase):
         self.assertEqual(html.count("<tr>"), 3)
 
     def test_insert_table_invalid_dims(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.setPlainText("Before")
         editor.insert_table(0, 5)
         self.assertEqual(editor.toPlainText(), "Before")
 
     def test_insert_single_row(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.insert_table(1, 2)
         html = editor.toHtml()
         self.assertIn("<table", html)
@@ -480,7 +480,7 @@ class TableInsertTests(unittest.TestCase):
         self.assertEqual(dialog.MAX_COLS, 8)
 
     def test_toolbar_has_image_table_buttons(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertTrue(hasattr(window.toolbar, "action_insert_image"))
         self.assertTrue(hasattr(window.toolbar, "action_insert_table"))
 
@@ -496,7 +496,7 @@ class ExportPrintTests(unittest.TestCase):
 
         from PySide6.QtPrintSupport import QPrinter
 
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         editor.show()
         editor.setPlainText("Export test content")
 
@@ -513,21 +513,21 @@ class ExportPrintTests(unittest.TestCase):
         Path(tmp).unlink(missing_ok=True)
 
     def test_print_method_exists(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         self.assertTrue(callable(editor.print_document))
 
     def test_export_pdf_method_exists(self) -> None:
-        editor = StaxWordEditor()
+        editor = SnapWordEditor()
         self.assertTrue(callable(editor.export_pdf))
 
     def test_toolbar_has_print_pdf_buttons(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertTrue(hasattr(window.toolbar, "action_print"))
         self.assertTrue(hasattr(window.toolbar, "action_export_pdf"))
         self.assertIn("export", window.toolbar.section_names())
 
     def test_menubar_has_print_pdf_actions(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertTrue(hasattr(window.menu_bar, "action_print"))
         self.assertTrue(hasattr(window.menu_bar, "action_export_pdf"))
 
@@ -567,7 +567,7 @@ class ThemeManagerTests(unittest.TestCase):
 
     def test_save_and_load_user_theme(self) -> None:
 
-        from staxword.themes import _USER_THEMES_DIR
+        from snapword.themes import _USER_THEMES_DIR
 
         name = "_test_theme_delete_me"
         save_theme_colors(name, {"editor_bg": "#123456", "_base": "light"})
@@ -621,7 +621,7 @@ class ThemeEditorTests(unittest.TestCase):
         self.assertIn("text_color", colors)
 
     def test_window_has_theme_menu_actions(self) -> None:
-        window = StaxWordWindow()
+        window = SnapWordWindow()
         self.assertTrue(hasattr(window.menu_bar, "action_theme_edit"))
         self.assertTrue(hasattr(window.menu_bar, "action_preferences"))
 
