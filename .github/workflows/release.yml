@@ -33,7 +33,6 @@ jobs:
     timeout-minutes: 30
     env:
       QT_QPA_PLATFORM: offscreen
-      SNAPWORD_CONFIG_DIR: ${{ runner.temp }}/snapword-release-tests
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Check out tagged release
@@ -44,6 +43,9 @@ jobs:
       - name: Check out rehearsal source
         if: github.event_name == 'workflow_dispatch' && !inputs.publish
         uses: actions/checkout@v4
+      - name: Isolate SnapWord configuration
+        shell: bash
+        run: echo "SNAPWORD_CONFIG_DIR=$RUNNER_TEMP/snapword-release-tests" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
