@@ -17,9 +17,11 @@ jobs:
         python: ['3.10', '3.12']
 env:
       QT_QPA_PLATFORM: offscreen
-      SNAPWORD_CONFIG_DIR: "${{ runner.temp }}/snapword-test"
     steps:
       - uses: actions/checkout@v4
+      - name: Isolate SnapWord config directory
+        shell: bash
+        run: echo "SNAPWORD_CONFIG_DIR=$RUNNER_TEMP/snapword-test" >> "$GITHUB_ENV"
       - name: Install Qt runtime libraries (Linux)
         if: runner.os == 'Linux'
         run: |
