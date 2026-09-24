@@ -57,7 +57,7 @@ Release asset on tagged builds:
 
 ```
 python -m pip install -e ".[dev]" pyinstaller
-pyinstaller --onefile --name snapword --add-data "snapword/themes/*;snapword/themes" snapword/main.py
+pyinstaller --onefile --name snapword --add-data "snapword/themes/*;snapword/themes" snapword_launcher.py
 ```
 
 ## Development & tests
