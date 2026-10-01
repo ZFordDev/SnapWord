@@ -12,6 +12,9 @@ available through **View → Toolbars**.
 - **View → Toolbars** controls individual sections. Hidden toolbars retain their
   menu commands and keyboard shortcuts.
 - **View → Files** opens the dockable file browser.
+- The file browser shows its current folder path. Use **Up** to move to the parent
+  folder; the button is disabled at the filesystem root. Opening a file from the
+  tree keeps the current folder in view.
 - **View → Reset Workspace Layout** restores default ordering, visibility and
   window geometry. Advanced sections return to their default hidden state.
 
@@ -51,15 +54,7 @@ now affect the generated stylesheet directly.
 
 ## Validation
 
-```powershell
-$env:QT_QPA_PLATFORM = 'offscreen'
-$env:SNAPWORD_CONFIG_DIR = Join-Path $env:TEMP 'snapword-tests'
-python -m pytest -q
-python -m ruff check snapword tests
-```
-
-The UI regression tests use temporary layout settings and cover actual toolbar
-handle dragging, floating/restoring/redocking, visibility, reset order, document
-growth, top alignment, action synchronization, tab identity and failed saves.
-Headless rendering may need an explicitly registered font when the offscreen
-Qt platform has no system font database.
+See [Contributing to SnapWord](CONTRIBUTING.md) for the test and lint commands,
+including headless Qt setup. The UI regression tests cover actual toolbar handle
+dragging, floating/restoring/redocking, visibility, reset order, document growth,
+top alignment, action synchronization, tab identity, and failed saves.

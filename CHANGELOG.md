@@ -1,5 +1,12 @@
 # Changelog
 
+## Next update
+
+### Fixed
+
+- The file browser now shows its current folder and includes an **Up** control
+  for navigating to parent directories.
+
 ## v0.1.0 (2026-09-25)
 
 ### Added

@@ -38,6 +38,16 @@ QToolBar QComboBox::down-arrow {
     border-top: 5px solid {text_color};
 }
 QTreeView#FileTreeList { background: {toolbar_bg}; border: none; padding: 6px; }
+QToolButton#FileTreeUpButton {
+    background: {button_bg}; border: 1px solid {border_color}; border-radius: 4px;
+    padding: 3px 6px;
+}
+QToolButton#FileTreeUpButton:hover { background: {button_hover}; }
+QToolButton#FileTreeUpButton:disabled { color: {scrollbar_handle}; }
+QLineEdit#FileTreePath {
+    background: {toolbar_bg}; border: 1px solid {border_color}; border-radius: 4px;
+    padding: 3px 6px;
+}
 QTreeView::item { padding: 5px; }
 QTreeView::item:hover { background: {button_hover}; }
 QTreeView::item:selected { background: {button_active}; color: {accent_text}; }
