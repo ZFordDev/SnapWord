@@ -108,7 +108,7 @@ class DocumentController(QObject):
             self.window.file_tree.set_root_path(path)
             self.window.file_tree_dock.show()
 
-    def load_file(self, path):
+    def load_file(self, path, *, update_tree_root=True):
         path = str(Path(path).resolve())
         for index, doc in enumerate(self.tabs):
             if doc.path and Path(doc.path).resolve() == Path(path):
@@ -126,7 +126,8 @@ class DocumentController(QObject):
             index = self.bar.add_tab(Path(path).name)
         self.bar.set_current_index(index)
         self.activate(index)
-        self.window.file_tree.set_root_path(str(Path(path).parent))
+        if update_tree_root:
+            self.window.file_tree.set_root_path(str(Path(path).parent))
 
     def save(self):
         return self.save_tab(self.active)

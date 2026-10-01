@@ -61,7 +61,7 @@ class SnapWordWindow(QMainWindow):
         files_action.setShortcut("Ctrl+Shift+F")
         self.menu_bar.view_menu.insertAction(self.actions["view.reset"], files_action)
         self.menu_bar.action_view_filetree = files_action
-        self.file_tree.file_opened.connect(self.load_file)
+        self.file_tree.file_opened.connect(self._load_file_from_tree)
         self.editor.metrics_changed.connect(self.footer.update_metrics)
         self.editor.cursorPositionChanged.connect(self._on_cursor_position_changed)
 
@@ -173,6 +173,9 @@ class SnapWordWindow(QMainWindow):
 
     def load_file(self, path):
         self.documents.load_file(path)
+
+    def _load_file_from_tree(self, path):
+        self.documents.load_file(path, update_tree_root=False)
 
     def _new_tab(self):
         self.documents.new()

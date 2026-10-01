@@ -1,5 +1,6 @@
 """Regression coverage for modular UI ownership, persistence and document safety."""
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -53,6 +54,48 @@ def test_visibility_does_not_hide_shared_menu_action(window):
     assert window.actions["insert.image"].isVisible()
     bar.show()
     assert toggle.isChecked()
+
+
+def test_file_tree_navigates_up_and_shows_current_path(window, tmp_path):
+    nested = tmp_path / "first" / "second"
+    nested.mkdir(parents=True)
+    dock = window.file_tree_dock
+    window.file_tree.set_root_path(str(nested))
+    assert Path(dock.path_display.text()) == nested
+    assert dock.path_display.toolTip() == dock.path_display.text()
+    assert dock.up_button.isEnabled()
+
+    dock.up_button.click()
+    assert Path(window.file_tree.model.rootPath()) == nested.parent
+    assert Path(dock.path_display.text()) == nested.parent
+
+    window.file_tree.set_root_path(str(Path(tmp_path.anchor)))
+    assert not dock.up_button.isEnabled()
+    assert Path(dock.path_display.text()) == Path(tmp_path.anchor)
+    window.file_tree.navigate_up()
+    assert Path(window.file_tree.model.rootPath()) == Path(tmp_path.anchor)
+
+
+def test_opening_file_from_tree_preserves_folder_scope(window, tmp_path):
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    document = nested / "example.docs"
+    document.write_text("<p>Example</p>", encoding="utf-8")
+    window.file_tree.set_root_path(str(tmp_path))
+
+    window.file_tree.file_opened.emit(str(document))
+
+    assert window.documents.tabs[window.documents.active].path == str(document)
+    assert Path(window.file_tree.model.rootPath()) == tmp_path
+    assert Path(window.file_tree_dock.path_display.text()) == tmp_path
+
+    other = tmp_path / "other"
+    other.mkdir()
+    opened_from_menu = other / "another.docs"
+    opened_from_menu.write_text("<p>Another</p>", encoding="utf-8")
+    window.load_file(str(opened_from_menu))
+    assert Path(window.file_tree.model.rootPath()) == other
+    assert Path(window.file_tree_dock.path_display.text()) == other
 
 
 def test_restore_layout_after_docks_exist(window, app, settings):
